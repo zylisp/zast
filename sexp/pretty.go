@@ -12,16 +12,24 @@ type PrettyPrintConfig struct {
 	AlignKeywords bool // Align keyword-value pairs (default: true)
 	CompactSmall  bool // Keep small lists on one line (default: true)
 	CompactLimit  int  // Max chars for compact lists (default: 60)
+
+	// Blank lines between top-level forms
+	BlankLinesBetweenForms int // default: 0
+
+	// Use tabs instead of spaces for indentation
+	UseTabs bool // default: false
 }
 
 // DefaultPrettyPrintConfig returns the default configuration
 func DefaultPrettyPrintConfig() *PrettyPrintConfig {
 	return &PrettyPrintConfig{
-		IndentWidth:   2,
-		MaxLineWidth:  80,
-		AlignKeywords: true,
-		CompactSmall:  true,
-		CompactLimit:  60,
+		IndentWidth:            2,
+		MaxLineWidth:           80,
+		AlignKeywords:          true,
+		CompactSmall:           true,
+		CompactLimit:           60,
+		BlankLinesBetweenForms: 0,
+		UseTabs:                false,
 	}
 }
 
@@ -405,6 +413,10 @@ func (p *PrettyPrinter) formatListBody(list *List, depth int) {
 	p.write("(")
 	for i, elem := range list.Elements {
 		if i > 0 {
+			// Add blank lines between forms if configured
+			for j := 0; j < p.config.BlankLinesBetweenForms; j++ {
+				p.newline()
+			}
 			p.newline()
 			p.indent(depth)
 		} else {
@@ -475,6 +487,13 @@ func (p *PrettyPrinter) newline() {
 }
 
 func (p *PrettyPrinter) indent(depth int) {
-	spaces := depth * p.config.IndentWidth
-	p.writeSpaces(spaces)
+	if p.config.UseTabs {
+		for i := 0; i < depth; i++ {
+			p.buf.WriteString("\t")
+			p.currentColumn += p.config.IndentWidth // Approximate tab width
+		}
+	} else {
+		spaces := depth * p.config.IndentWidth
+		p.writeSpaces(spaces)
+	}
 }

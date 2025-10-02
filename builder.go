@@ -10,10 +10,33 @@ import (
 	"zylisp/zast/sexp"
 )
 
+// BuilderConfig holds configuration for the AST builder
+type BuilderConfig struct {
+	// Strict mode: fail on unknown node types vs. skip them
+	StrictMode bool // default: false
+
+	// Maximum nesting depth to prevent stack overflow on malformed input
+	MaxNestingDepth int // default: 1000
+
+	// Collect all errors vs. fail on first error
+	CollectAllErrors bool // default: true
+}
+
+// DefaultBuilderConfig returns the default builder configuration
+func DefaultBuilderConfig() *BuilderConfig {
+	return &BuilderConfig{
+		StrictMode:       false,
+		MaxNestingDepth:  1000,
+		CollectAllErrors: true,
+	}
+}
+
 // Builder builds Go AST nodes from S-expressions
 type Builder struct {
 	fset   *token.FileSet
 	errors []string
+	config *BuilderConfig
+	depth  int // Current nesting depth
 }
 
 // FileSetInfo stores the parsed FileSet information
@@ -30,10 +53,16 @@ type FileInfo struct {
 	Lines []int // byte offsets of line starts
 }
 
-// NewBuilder creates a new AST builder
+// NewBuilder creates a new AST builder with default configuration
 func NewBuilder() *Builder {
+	return NewBuilderWithConfig(DefaultBuilderConfig())
+}
+
+// NewBuilderWithConfig creates a new AST builder with custom configuration
+func NewBuilderWithConfig(config *BuilderConfig) *Builder {
 	return &Builder{
 		errors: []string{},
+		config: config,
 	}
 }
 
@@ -45,6 +74,20 @@ func (b *Builder) Errors() []string {
 // addError records an error
 func (b *Builder) addError(format string, args ...interface{}) {
 	b.errors = append(b.errors, fmt.Sprintf(format, args...))
+}
+
+// enterDepth increments nesting depth and checks limit
+func (b *Builder) enterDepth() error {
+	b.depth++
+	if b.depth > b.config.MaxNestingDepth {
+		return fmt.Errorf("maximum nesting depth exceeded (%d)", b.config.MaxNestingDepth)
+	}
+	return nil
+}
+
+// exitDepth decrements nesting depth
+func (b *Builder) exitDepth() {
+	b.depth--
 }
 
 // expectList verifies sexp is a List and returns it
@@ -379,6 +422,11 @@ func (b *Builder) buildCallExpr(s sexp.SExp) (*ast.CallExpr, error) {
 
 // buildExpr dispatches to appropriate expression builder
 func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
+	if err := b.enterDepth(); err != nil {
+		return nil, err
+	}
+	defer b.exitDepth()
+
 	list, ok := b.expectList(s, "expression")
 	if !ok {
 		return nil, fmt.Errorf("expected list")

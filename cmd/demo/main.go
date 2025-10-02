@@ -41,6 +41,9 @@ func main() {
 
 	fmt.Println("=== Zylisp Bootstrap Demo ===\n")
 
+	// Set up configuration
+	config := zast.DefaultConfig()
+
 	// Create temporary directory for our work
 	tmpDir, err := os.MkdirTemp("", "zast-*")
 	if err != nil {
@@ -67,14 +70,7 @@ func main() {
 	// Parse and pretty print the S-expression
 	parser := sexp.NewParser(sexpText)
 	sexpTree, _ := parser.Parse()
-	config := &sexp.PrettyPrintConfig{
-		IndentWidth:   2,
-		MaxLineWidth:  100,
-		AlignKeywords: true,
-		CompactSmall:  true,
-		CompactLimit:  80,
-	}
-	pp := sexp.NewPrettyPrinterWithConfig(config)
+	pp := sexp.NewPrettyPrinterWithConfig(config.Printer)
 	pretty := pp.Format(sexpTree)
 	fmt.Println("\n=== Pretty-Printed S-Expression ===")
 	fmt.Println(pretty)

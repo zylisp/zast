@@ -8,16 +8,40 @@ import (
 	"strings"
 )
 
-// Writer writes Go AST nodes as S-expressions
-type Writer struct {
-	fset *token.FileSet
-	buf  strings.Builder
+// WriterConfig holds configuration for the AST writer
+type WriterConfig struct {
+	// Maximum position to scan when collecting files from FileSet
+	MaxFileSetScan int // default: 1000000
+
+	// Early termination: stop scanning after this many positions with no new files
+	FileSearchWindow int // default: 10000
 }
 
-// NewWriter creates a new S-expression writer
+// DefaultWriterConfig returns the default writer configuration
+func DefaultWriterConfig() *WriterConfig {
+	return &WriterConfig{
+		MaxFileSetScan:   1000000,
+		FileSearchWindow: 10000,
+	}
+}
+
+// Writer writes Go AST nodes as S-expressions
+type Writer struct {
+	fset   *token.FileSet
+	buf    strings.Builder
+	config *WriterConfig
+}
+
+// NewWriter creates a new S-expression writer with default configuration
 func NewWriter(fset *token.FileSet) *Writer {
+	return NewWriterWithConfig(fset, DefaultWriterConfig())
+}
+
+// NewWriterWithConfig creates a new S-expression writer with custom configuration
+func NewWriterWithConfig(fset *token.FileSet, config *WriterConfig) *Writer {
 	return &Writer{
-		fset: fset,
+		fset:   fset,
+		config: config,
 	}
 }
 
@@ -640,7 +664,7 @@ func (w *Writer) collectFiles() []*token.File {
 	// Iterate through all positions to find files
 	// Start from base position and try to find files
 	base := w.fset.Base()
-	maxPos := base + 1000000 // Arbitrary large number
+	maxPos := base + w.config.MaxFileSetScan
 
 	seen := make(map[*token.File]bool)
 	for i := base; i < maxPos; i++ {
@@ -651,7 +675,7 @@ func (w *Writer) collectFiles() []*token.File {
 		}
 
 		// Stop if we haven't found a new file in a while
-		if len(files) > 0 && i > base+10000 {
+		if len(files) > 0 && i > base+w.config.FileSearchWindow {
 			break
 		}
 	}
