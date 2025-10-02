@@ -5,6 +5,18 @@ import (
 	"strings"
 )
 
+const (
+	// NilLiteral is the string representation of nil
+	NilLiteral = "nil"
+
+	// ParenO is the opening parenthesis
+	ParenO = "("
+	// ParenC is the closing parenthesis
+	ParenC = ")"
+	// ParenOC is the empty list representation (open and close)
+	ParenOC = "()"
+)
+
 // SExp is the interface all S-expression nodes implement
 type SExp interface {
 	sexp()
@@ -47,7 +59,12 @@ type String struct {
 
 func (s *String) sexp()          {}
 func (s *String) Pos() Position  { return s.Position }
-func (s *String) String() string { return fmt.Sprintf("%q", s.Value) }
+func (s *String) String() string { return s.Quoted() }
+
+// Quoted returns the string value with surrounding quotes
+func (s *String) Quoted() string {
+	return fmt.Sprintf("%q", s.Value)
+}
 
 // Number represents a numeric literal
 type Number struct {
@@ -66,7 +83,7 @@ type Nil struct {
 
 func (n *Nil) sexp()          {}
 func (n *Nil) Pos() Position  { return n.Position }
-func (n *Nil) String() string { return "nil" }
+func (n *Nil) String() string { return NilLiteral }
 
 // List represents a list of S-expressions
 type List struct {
@@ -78,13 +95,18 @@ func (l *List) sexp() {}
 func (l *List) Pos() Position { return l.Position }
 func (l *List) String() string {
 	if len(l.Elements) == 0 {
-		return "()"
+		return ParenOC
 	}
-	var parts []string
-	for _, elem := range l.Elements {
-		parts = append(parts, fmt.Sprintf("%v", elem))
+	return ParenO + strings.Join(l.ElementStrings(), " ") + ParenC
+}
+
+// ElementStrings returns string representations of all elements
+func (l *List) ElementStrings() []string {
+	parts := make([]string, len(l.Elements))
+	for i, elem := range l.Elements {
+		parts[i] = elem.String()
 	}
-	return "(" + strings.Join(parts, " ") + ")"
+	return parts
 }
 
 // Parser parses S-expressions from token stream
