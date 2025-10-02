@@ -63,7 +63,23 @@ func main() {
 	// Step 2: Convert AST to S-expression
 	fmt.Println("Step 2: Converting AST to S-expression...")
 	sexpText := astToSexp(fset, astFile)
-	fmt.Println(sexpText + "\n")
+
+	// Parse and pretty print the S-expression
+	parser := sexp.NewParser(sexpText)
+	sexpTree, _ := parser.Parse()
+	config := &sexp.Config{
+		IndentWidth:   2,
+		MaxLineWidth:  100,
+		AlignKeywords: true,
+		CompactSmall:  true,
+		CompactLimit:  80,
+	}
+	pp := sexp.NewPrettyPrinterWithConfig(config)
+	pretty := pp.Format(sexpTree)
+	fmt.Println("\n=== Pretty-Printed S-Expression ===")
+	fmt.Println(pretty)
+	fmt.Println("===================================\n")
+
 	logVerbose("S-expression length: %d bytes", len(sexpText))
 	fmt.Println("✓ Converted successfully\n")
 
@@ -80,13 +96,13 @@ func main() {
 
 	// Step 5: Parse S-expression to generic tree
 	fmt.Println("Step 5: Parsing S-expression to generic tree...")
-	sexpTree := parseSexp(sexpTextRead)
+	sexpTree2 := parseSexp(sexpTextRead)
 	logVerbose("Parsed to tree structure")
 	fmt.Println("✓ Parsed successfully\n")
 
 	// Step 6: Convert S-expression to AST
 	fmt.Println("Step 6: Converting S-expression to AST...")
-	fset2, astFile2 := sexpToAST(sexpTree)
+	fset2, astFile2 := sexpToAST(sexpTree2)
 	logVerbose("Converted to AST with %d declarations", len(astFile2.Decls))
 	fmt.Println("✓ Converted successfully\n")
 
