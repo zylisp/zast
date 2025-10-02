@@ -39,7 +39,7 @@ var (
 func main() {
 	flag.Parse()
 
-	fmt.Println("=== Zylisp Bootstrap Demo ===\n")
+	fmt.Print("=== Zylisp Bootstrap Demo ===\n\n")
 
 	// Set up configuration
 	config := zast.DefaultConfig()
@@ -61,7 +61,7 @@ func main() {
 	// Step 1: Parse Go source to AST
 	fmt.Println("Step 1: Parsing Go source to AST...")
 	fset, astFile := parseGoSource(helloWorldSource)
-	fmt.Println("✓ Parsed successfully\n")
+	fmt.Print("✓ Parsed successfully\n\n")
 
 	// Step 2: Convert AST to S-expression
 	fmt.Println("Step 2: Converting AST to S-expression...")
@@ -74,10 +74,10 @@ func main() {
 	pretty := pp.Format(sexpTree)
 	fmt.Println("\n=== Pretty-Printed S-Expression ===")
 	fmt.Println(pretty)
-	fmt.Println("===================================\n")
+	fmt.Print("===================================\n\n")
 
 	logVerbose("S-expression length: %d bytes", len(sexpText))
-	fmt.Println("✓ Converted successfully\n")
+	fmt.Print("✓ Converted successfully\n\n")
 
 	// Step 3: Write S-expression to file
 	fmt.Println("Step 3: Writing S-expression to file...")
@@ -88,25 +88,25 @@ func main() {
 	fmt.Println("Step 4: Reading S-expression from file...")
 	sexpTextRead := readSexpFromFile(sexpPath)
 	logVerbose("Read %d bytes", len(sexpTextRead))
-	fmt.Println("✓ Read successfully\n")
+	fmt.Print("✓ Read successfully\n\n")
 
 	// Step 5: Parse S-expression to generic tree
 	fmt.Println("Step 5: Parsing S-expression to generic tree...")
 	sexpTree2 := parseSexp(sexpTextRead)
 	logVerbose("Parsed to tree structure")
-	fmt.Println("✓ Parsed successfully\n")
+	fmt.Print("✓ Parsed successfully\n\n")
 
 	// Step 6: Convert S-expression to AST
 	fmt.Println("Step 6: Converting S-expression to AST...")
 	fset2, astFile2 := sexpToAST(sexpTree2)
 	logVerbose("Converted to AST with %d declarations", len(astFile2.Decls))
-	fmt.Println("✓ Converted successfully\n")
+	fmt.Print("✓ Converted successfully\n\n")
 
 	// Step 7: Generate Go source from AST
 	fmt.Println("Step 7: Generating Go source from parsed AST...")
 	goSource := astToGoSource(fset2, astFile2)
 	logVerbose("Generated %d bytes of Go source", len(goSource))
-	fmt.Println("✓ Generated successfully\n")
+	fmt.Print("✓ Generated successfully\n\n")
 
 	// Step 8: Write Go source to file
 	fmt.Println("Step 8: Writing Go source to file...")
@@ -126,7 +126,7 @@ func main() {
 	// Step 11: Verify output
 	fmt.Println("Step 11: Verifying output...")
 	verifyOutput(output, expectedOutput)
-	fmt.Println("✓ Output verified!\n")
+	fmt.Print("✓ Output verified!\n\n")
 
 	// Success!
 	fmt.Println("=== SUCCESS! ===")
