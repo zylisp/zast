@@ -235,7 +235,7 @@ func (w *Writer) writeExpr(expr ast.Expr) error {
 	case *ast.SelectorExpr:
 		return w.writeSelectorExpr(e)
 	default:
-		return fmt.Errorf("unknown expression type: %T", expr)
+		return ErrUnknownExprType(expr)
 	}
 }
 
@@ -291,7 +291,7 @@ func (w *Writer) writeStmt(stmt ast.Stmt) error {
 	case *ast.BlockStmt:
 		return w.writeBlockStmt(s)
 	default:
-		return fmt.Errorf("unknown statement type: %T", stmt)
+		return ErrUnknownStmtType(stmt)
 	}
 }
 
@@ -430,7 +430,7 @@ func (w *Writer) writeSpec(spec ast.Spec) error {
 	case *ast.ImportSpec:
 		return w.writeImportSpec(s)
 	default:
-		return fmt.Errorf("unknown spec type: %T", spec)
+		return ErrUnknownSpecType(spec)
 	}
 }
 
@@ -515,7 +515,7 @@ func (w *Writer) writeDecl(decl ast.Decl) error {
 	case *ast.FuncDecl:
 		return w.writeFuncDecl(d)
 	default:
-		return fmt.Errorf("unknown declaration type: %T", decl)
+		return ErrUnknownDeclType(decl)
 	}
 }
 

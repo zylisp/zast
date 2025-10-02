@@ -155,13 +155,13 @@ func (p *Parser) Errors() []string {
 // Parse parses the input and returns the S-expression tree
 func (p *Parser) Parse() (SExp, error) {
 	if p.currentTokenIs(EOF) {
-		return nil, fmt.Errorf("no S-expression found")
+		return nil, ErrNoSExpression
 	}
 
 	sexp := p.parseSExp()
 
 	if len(p.errors) > 0 {
-		return nil, fmt.Errorf("parse errors: %s", strings.Join(p.errors, "; "))
+		return nil, ErrParseErrors(p.errors)
 	}
 
 	return sexp, nil
@@ -170,13 +170,13 @@ func (p *Parser) Parse() (SExp, error) {
 // ParseList parses input expecting a list and returns it
 func (p *Parser) ParseList() (*List, error) {
 	if !p.currentTokenIs(LPAREN) {
-		return nil, fmt.Errorf("expected list to start with '(', got %s", p.current.Type)
+		return nil, ErrExpectedList(p.current.Type)
 	}
 
 	list := p.parseList()
 
 	if len(p.errors) > 0 {
-		return nil, fmt.Errorf("parse errors: %s", strings.Join(p.errors, "; "))
+		return nil, ErrParseErrors(p.errors)
 	}
 
 	return list, nil
@@ -198,10 +198,10 @@ func (p *Parser) parseSExp() SExp {
 	case NIL:
 		return p.parseNil()
 	case ILLEGAL:
-		p.addError(fmt.Sprintf("illegal token: %s", p.current.Literal))
+		p.addError(ErrIllegalToken(p.current.Literal).Error())
 		return nil
 	default:
-		p.addError(fmt.Sprintf("unexpected token: %v", p.current.Type))
+		p.addError(ErrUnexpectedToken(p.current.Type).Error())
 		return nil
 	}
 }
@@ -231,7 +231,7 @@ func (p *Parser) parseList() *List {
 
 	// Check we ended on RPAREN
 	if !p.currentTokenIs(RPAREN) {
-		p.addError("unterminated list")
+		p.addError(ErrUnterminatedList.Error())
 		return list
 	}
 

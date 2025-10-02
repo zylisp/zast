@@ -80,7 +80,7 @@ func (b *Builder) addError(format string, args ...interface{}) {
 func (b *Builder) enterDepth() error {
 	b.depth++
 	if b.depth > b.config.MaxNestingDepth {
-		return fmt.Errorf("maximum nesting depth exceeded (%d)", b.config.MaxNestingDepth)
+		return fmt.Errorf("%w (%d)", ErrMaxNestingDepth, b.config.MaxNestingDepth)
 	}
 	return nil
 }
@@ -162,7 +162,7 @@ func (b *Builder) parseInt(s sexp.SExp) (int, error) {
 	case *sexp.Symbol:
 		return strconv.Atoi(v.Value)
 	default:
-		return 0, fmt.Errorf("expected number, got %T", s)
+		return 0, ErrWrongType("number", s)
 	}
 }
 
@@ -180,7 +180,7 @@ func (b *Builder) parsePos(s sexp.SExp) token.Pos {
 func (b *Builder) parseString(s sexp.SExp) (string, error) {
 	str, ok := s.(*sexp.String)
 	if !ok {
-		return "", fmt.Errorf("expected string, got %T", s)
+		return "", ErrWrongType("string", s)
 	}
 	return str.Value, nil
 }
@@ -195,7 +195,7 @@ func (b *Builder) parseNil(s sexp.SExp) bool {
 func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 	sym, ok := s.(*sexp.Symbol)
 	if !ok {
-		return token.ILLEGAL, fmt.Errorf("expected symbol for token, got %T", s)
+		return token.ILLEGAL, ErrWrongType("symbol for token", s)
 	}
 
 	switch sym.Value {
@@ -218,7 +218,7 @@ func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 	case "STRING":
 		return token.STRING, nil
 	default:
-		return token.ILLEGAL, fmt.Errorf("unknown token: %s", sym.Value)
+		return token.ILLEGAL, ErrUnknownNodeType(sym.Value, "token")
 	}
 }
 
@@ -226,32 +226,32 @@ func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 func (b *Builder) buildIdent(s sexp.SExp) (*ast.Ident, error) {
 	list, ok := b.expectList(s, "Ident")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if len(list.Elements) == 0 {
-		return nil, fmt.Errorf("empty list")
+		return nil, ErrEmptyList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "Ident") {
-		return nil, fmt.Errorf("not an Ident node")
+		return nil, ErrExpectedNodeType("Ident", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	nameposVal, ok := b.requireKeyword(args, "namepos", "Ident")
 	if !ok {
-		return nil, fmt.Errorf("missing namepos")
+		return nil, ErrMissingField("namepos")
 	}
 
 	nameVal, ok := b.requireKeyword(args, "name", "Ident")
 	if !ok {
-		return nil, fmt.Errorf("missing name")
+		return nil, ErrMissingField("name")
 	}
 
 	name, err := b.parseString(nameVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid name: %v", err)
+		return nil, ErrInvalidField("name", err)
 	}
 
 	ident := &ast.Ident{
@@ -275,38 +275,38 @@ func (b *Builder) buildOptionalIdent(s sexp.SExp) (*ast.Ident, error) {
 func (b *Builder) buildBasicLit(s sexp.SExp) (*ast.BasicLit, error) {
 	list, ok := b.expectList(s, "BasicLit")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "BasicLit") {
-		return nil, fmt.Errorf("not a BasicLit node")
+		return nil, ErrExpectedNodeType("BasicLit", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	valueposVal, ok := b.requireKeyword(args, "valuepos", "BasicLit")
 	if !ok {
-		return nil, fmt.Errorf("missing valuepos")
+		return nil, ErrMissingField("valuepos")
 	}
 
 	kindVal, ok := b.requireKeyword(args, "kind", "BasicLit")
 	if !ok {
-		return nil, fmt.Errorf("missing kind")
+		return nil, ErrMissingField("kind")
 	}
 
 	valueVal, ok := b.requireKeyword(args, "value", "BasicLit")
 	if !ok {
-		return nil, fmt.Errorf("missing value")
+		return nil, ErrMissingField("value")
 	}
 
 	kind, err := b.parseToken(kindVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid kind: %v", err)
+		return nil, ErrInvalidField("kind", err)
 	}
 
 	value, err := b.parseString(valueVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid value: %v", err)
+		return nil, ErrInvalidField("value", err)
 	}
 
 	return &ast.BasicLit{
@@ -320,33 +320,33 @@ func (b *Builder) buildBasicLit(s sexp.SExp) (*ast.BasicLit, error) {
 func (b *Builder) buildSelectorExpr(s sexp.SExp) (*ast.SelectorExpr, error) {
 	list, ok := b.expectList(s, "SelectorExpr")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "SelectorExpr") {
-		return nil, fmt.Errorf("not a SelectorExpr node")
+		return nil, ErrExpectedNodeType("SelectorExpr", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	xVal, ok := b.requireKeyword(args, "x", "SelectorExpr")
 	if !ok {
-		return nil, fmt.Errorf("missing x")
+		return nil, ErrMissingField("x")
 	}
 
 	selVal, ok := b.requireKeyword(args, "sel", "SelectorExpr")
 	if !ok {
-		return nil, fmt.Errorf("missing sel")
+		return nil, ErrMissingField("sel")
 	}
 
 	x, err := b.buildExpr(xVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid x: %v", err)
+		return nil, ErrInvalidField("x", err)
 	}
 
 	sel, err := b.buildIdent(selVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid sel: %v", err)
+		return nil, ErrInvalidField("sel", err)
 	}
 
 	return &ast.SelectorExpr{
@@ -359,43 +359,43 @@ func (b *Builder) buildSelectorExpr(s sexp.SExp) (*ast.SelectorExpr, error) {
 func (b *Builder) buildCallExpr(s sexp.SExp) (*ast.CallExpr, error) {
 	list, ok := b.expectList(s, "CallExpr")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "CallExpr") {
-		return nil, fmt.Errorf("not a CallExpr node")
+		return nil, ErrExpectedNodeType("CallExpr", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	funVal, ok := b.requireKeyword(args, "fun", "CallExpr")
 	if !ok {
-		return nil, fmt.Errorf("missing fun")
+		return nil, ErrMissingField("fun")
 	}
 
 	lparenVal, ok := b.requireKeyword(args, "lparen", "CallExpr")
 	if !ok {
-		return nil, fmt.Errorf("missing lparen")
+		return nil, ErrMissingField("lparen")
 	}
 
 	argsVal, ok := b.requireKeyword(args, "args", "CallExpr")
 	if !ok {
-		return nil, fmt.Errorf("missing args")
+		return nil, ErrMissingField("args")
 	}
 
 	ellipsisVal, ok := b.requireKeyword(args, "ellipsis", "CallExpr")
 	if !ok {
-		return nil, fmt.Errorf("missing ellipsis")
+		return nil, ErrMissingField("ellipsis")
 	}
 
 	rparenVal, ok := b.requireKeyword(args, "rparen", "CallExpr")
 	if !ok {
-		return nil, fmt.Errorf("missing rparen")
+		return nil, ErrMissingField("rparen")
 	}
 
 	fun, err := b.buildExpr(funVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid fun: %v", err)
+		return nil, ErrInvalidField("fun", err)
 	}
 
 	// Build args list
@@ -405,7 +405,7 @@ func (b *Builder) buildCallExpr(s sexp.SExp) (*ast.CallExpr, error) {
 		for _, argSexp := range argsList.Elements {
 			arg, err := b.buildExpr(argSexp)
 			if err != nil {
-				return nil, fmt.Errorf("invalid arg: %v", err)
+				return nil, ErrInvalidField("arg", err)
 			}
 			callArgs = append(callArgs, arg)
 		}
@@ -429,16 +429,16 @@ func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 
 	list, ok := b.expectList(s, "expression")
 	if !ok {
-		return nil, fmt.Errorf("expected list")
+		return nil, ErrNotList
 	}
 
 	if len(list.Elements) == 0 {
-		return nil, fmt.Errorf("empty list")
+		return nil, ErrEmptyList
 	}
 
 	sym, ok := list.Elements[0].(*sexp.Symbol)
 	if !ok {
-		return nil, fmt.Errorf("expected symbol as first element")
+		return nil, ErrExpectedSymbol
 	}
 
 	switch sym.Value {
@@ -451,7 +451,7 @@ func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 	case "SelectorExpr":
 		return b.buildSelectorExpr(s)
 	default:
-		return nil, fmt.Errorf("unknown expression type: %s", sym.Value)
+		return nil, ErrUnknownNodeType(sym.Value, "expression")
 	}
 }
 
@@ -459,23 +459,23 @@ func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 func (b *Builder) buildExprStmt(s sexp.SExp) (*ast.ExprStmt, error) {
 	list, ok := b.expectList(s, "ExprStmt")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "ExprStmt") {
-		return nil, fmt.Errorf("not an ExprStmt node")
+		return nil, ErrExpectedNodeType("ExprStmt", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	xVal, ok := b.requireKeyword(args, "x", "ExprStmt")
 	if !ok {
-		return nil, fmt.Errorf("missing x")
+		return nil, ErrMissingField("x")
 	}
 
 	x, err := b.buildExpr(xVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid x: %v", err)
+		return nil, ErrInvalidField("x", err)
 	}
 
 	return &ast.ExprStmt{X: x}, nil
@@ -485,28 +485,28 @@ func (b *Builder) buildExprStmt(s sexp.SExp) (*ast.ExprStmt, error) {
 func (b *Builder) buildBlockStmt(s sexp.SExp) (*ast.BlockStmt, error) {
 	list, ok := b.expectList(s, "BlockStmt")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "BlockStmt") {
-		return nil, fmt.Errorf("not a BlockStmt node")
+		return nil, ErrExpectedNodeType("BlockStmt", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	lbraceVal, ok := b.requireKeyword(args, "lbrace", "BlockStmt")
 	if !ok {
-		return nil, fmt.Errorf("missing lbrace")
+		return nil, ErrMissingField("lbrace")
 	}
 
 	listVal, ok := b.requireKeyword(args, "list", "BlockStmt")
 	if !ok {
-		return nil, fmt.Errorf("missing list")
+		return nil, ErrMissingField("list")
 	}
 
 	rbraceVal, ok := b.requireKeyword(args, "rbrace", "BlockStmt")
 	if !ok {
-		return nil, fmt.Errorf("missing rbrace")
+		return nil, ErrMissingField("rbrace")
 	}
 
 	// Build statement list
@@ -516,7 +516,7 @@ func (b *Builder) buildBlockStmt(s sexp.SExp) (*ast.BlockStmt, error) {
 		for _, stmtSexp := range stmtsList.Elements {
 			stmt, err := b.buildStmt(stmtSexp)
 			if err != nil {
-				return nil, fmt.Errorf("invalid statement: %v", err)
+				return nil, ErrInvalidField("statement", err)
 			}
 			stmts = append(stmts, stmt)
 		}
@@ -541,16 +541,16 @@ func (b *Builder) buildOptionalBlockStmt(s sexp.SExp) (*ast.BlockStmt, error) {
 func (b *Builder) buildStmt(s sexp.SExp) (ast.Stmt, error) {
 	list, ok := b.expectList(s, "statement")
 	if !ok {
-		return nil, fmt.Errorf("expected list")
+		return nil, ErrNotList
 	}
 
 	if len(list.Elements) == 0 {
-		return nil, fmt.Errorf("empty list")
+		return nil, ErrEmptyList
 	}
 
 	sym, ok := list.Elements[0].(*sexp.Symbol)
 	if !ok {
-		return nil, fmt.Errorf("expected symbol as first element")
+		return nil, ErrExpectedSymbol
 	}
 
 	switch sym.Value {
@@ -559,7 +559,7 @@ func (b *Builder) buildStmt(s sexp.SExp) (ast.Stmt, error) {
 	case "BlockStmt":
 		return b.buildBlockStmt(s)
 	default:
-		return nil, fmt.Errorf("unknown statement type: %s", sym.Value)
+		return nil, ErrUnknownNodeType(sym.Value, "statement")
 	}
 }
 
@@ -567,23 +567,23 @@ func (b *Builder) buildStmt(s sexp.SExp) (ast.Stmt, error) {
 func (b *Builder) buildField(s sexp.SExp) (*ast.Field, error) {
 	list, ok := b.expectList(s, "Field")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "Field") {
-		return nil, fmt.Errorf("not a Field node")
+		return nil, ErrExpectedNodeType("Field", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	typeVal, ok := b.requireKeyword(args, "type", "Field")
 	if !ok {
-		return nil, fmt.Errorf("missing type")
+		return nil, ErrMissingField("type")
 	}
 
 	fieldType, err := b.buildExpr(typeVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid type: %v", err)
+		return nil, ErrInvalidField("type", err)
 	}
 
 	// Build names list (optional)
@@ -594,7 +594,7 @@ func (b *Builder) buildField(s sexp.SExp) (*ast.Field, error) {
 			for _, nameSexp := range namesList.Elements {
 				ident, err := b.buildIdent(nameSexp)
 				if err != nil {
-					return nil, fmt.Errorf("invalid name: %v", err)
+					return nil, ErrInvalidField("name", err)
 				}
 				names = append(names, ident)
 			}
@@ -611,28 +611,28 @@ func (b *Builder) buildField(s sexp.SExp) (*ast.Field, error) {
 func (b *Builder) buildFieldList(s sexp.SExp) (*ast.FieldList, error) {
 	list, ok := b.expectList(s, "FieldList")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "FieldList") {
-		return nil, fmt.Errorf("not a FieldList node")
+		return nil, ErrExpectedNodeType("FieldList", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	openingVal, ok := b.requireKeyword(args, "opening", "FieldList")
 	if !ok {
-		return nil, fmt.Errorf("missing opening")
+		return nil, ErrMissingField("opening")
 	}
 
 	listVal, ok := b.requireKeyword(args, "list", "FieldList")
 	if !ok {
-		return nil, fmt.Errorf("missing list")
+		return nil, ErrMissingField("list")
 	}
 
 	closingVal, ok := b.requireKeyword(args, "closing", "FieldList")
 	if !ok {
-		return nil, fmt.Errorf("missing closing")
+		return nil, ErrMissingField("closing")
 	}
 
 	// Build field list
@@ -642,7 +642,7 @@ func (b *Builder) buildFieldList(s sexp.SExp) (*ast.FieldList, error) {
 		for _, fieldSexp := range fieldsList.Elements {
 			field, err := b.buildField(fieldSexp)
 			if err != nil {
-				return nil, fmt.Errorf("invalid field: %v", err)
+				return nil, ErrInvalidField("field", err)
 			}
 			fields = append(fields, field)
 		}
@@ -667,35 +667,35 @@ func (b *Builder) buildOptionalFieldList(s sexp.SExp) (*ast.FieldList, error) {
 func (b *Builder) buildFuncType(s sexp.SExp) (*ast.FuncType, error) {
 	list, ok := b.expectList(s, "FuncType")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "FuncType") {
-		return nil, fmt.Errorf("not a FuncType node")
+		return nil, ErrExpectedNodeType("FuncType", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	funcVal, ok := b.requireKeyword(args, "func", "FuncType")
 	if !ok {
-		return nil, fmt.Errorf("missing func")
+		return nil, ErrMissingField("func")
 	}
 
 	paramsVal, ok := b.requireKeyword(args, "params", "FuncType")
 	if !ok {
-		return nil, fmt.Errorf("missing params")
+		return nil, ErrMissingField("params")
 	}
 
 	resultsVal, _ := args["results"]
 
 	params, err := b.buildFieldList(paramsVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid params: %v", err)
+		return nil, ErrInvalidField("params", err)
 	}
 
 	results, err := b.buildOptionalFieldList(resultsVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid results: %v", err)
+		return nil, ErrInvalidField("results", err)
 	}
 
 	return &ast.FuncType{
@@ -709,23 +709,23 @@ func (b *Builder) buildFuncType(s sexp.SExp) (*ast.FuncType, error) {
 func (b *Builder) buildImportSpec(s sexp.SExp) (*ast.ImportSpec, error) {
 	list, ok := b.expectList(s, "ImportSpec")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "ImportSpec") {
-		return nil, fmt.Errorf("not an ImportSpec node")
+		return nil, ErrExpectedNodeType("ImportSpec", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	pathVal, ok := b.requireKeyword(args, "path", "ImportSpec")
 	if !ok {
-		return nil, fmt.Errorf("missing path")
+		return nil, ErrMissingField("path")
 	}
 
 	path, err := b.buildBasicLit(pathVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid path: %v", err)
+		return nil, ErrInvalidField("path", err)
 	}
 
 	// Optional name
@@ -733,7 +733,7 @@ func (b *Builder) buildImportSpec(s sexp.SExp) (*ast.ImportSpec, error) {
 	if nameVal, ok := args["name"]; ok {
 		name, err = b.buildOptionalIdent(nameVal)
 		if err != nil {
-			return nil, fmt.Errorf("invalid name: %v", err)
+			return nil, ErrInvalidField("name", err)
 		}
 	}
 
@@ -754,23 +754,23 @@ func (b *Builder) buildImportSpec(s sexp.SExp) (*ast.ImportSpec, error) {
 func (b *Builder) buildSpec(s sexp.SExp) (ast.Spec, error) {
 	list, ok := b.expectList(s, "spec")
 	if !ok {
-		return nil, fmt.Errorf("expected list")
+		return nil, ErrNotList
 	}
 
 	if len(list.Elements) == 0 {
-		return nil, fmt.Errorf("empty list")
+		return nil, ErrEmptyList
 	}
 
 	sym, ok := list.Elements[0].(*sexp.Symbol)
 	if !ok {
-		return nil, fmt.Errorf("expected symbol as first element")
+		return nil, ErrExpectedSymbol
 	}
 
 	switch sym.Value {
 	case "ImportSpec":
 		return b.buildImportSpec(s)
 	default:
-		return nil, fmt.Errorf("unknown spec type: %s", sym.Value)
+		return nil, ErrUnknownNodeType(sym.Value, "spec")
 	}
 }
 
@@ -778,33 +778,33 @@ func (b *Builder) buildSpec(s sexp.SExp) (ast.Spec, error) {
 func (b *Builder) buildGenDecl(s sexp.SExp) (*ast.GenDecl, error) {
 	list, ok := b.expectList(s, "GenDecl")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "GenDecl") {
-		return nil, fmt.Errorf("not a GenDecl node")
+		return nil, ErrExpectedNodeType("GenDecl", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	tokVal, ok := b.requireKeyword(args, "tok", "GenDecl")
 	if !ok {
-		return nil, fmt.Errorf("missing tok")
+		return nil, ErrMissingField("tok")
 	}
 
 	tokposVal, ok := b.requireKeyword(args, "tokpos", "GenDecl")
 	if !ok {
-		return nil, fmt.Errorf("missing tokpos")
+		return nil, ErrMissingField("tokpos")
 	}
 
 	specsVal, ok := b.requireKeyword(args, "specs", "GenDecl")
 	if !ok {
-		return nil, fmt.Errorf("missing specs")
+		return nil, ErrMissingField("specs")
 	}
 
 	tok, err := b.parseToken(tokVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid tok: %v", err)
+		return nil, ErrInvalidField("tok", err)
 	}
 
 	// Build specs list
@@ -814,7 +814,7 @@ func (b *Builder) buildGenDecl(s sexp.SExp) (*ast.GenDecl, error) {
 		for _, specSexp := range specsList.Elements {
 			spec, err := b.buildSpec(specSexp)
 			if err != nil {
-				return nil, fmt.Errorf("invalid spec: %v", err)
+				return nil, ErrInvalidField("spec", err)
 			}
 			specs = append(specs, spec)
 		}
@@ -842,33 +842,33 @@ func (b *Builder) buildGenDecl(s sexp.SExp) (*ast.GenDecl, error) {
 func (b *Builder) buildFuncDecl(s sexp.SExp) (*ast.FuncDecl, error) {
 	list, ok := b.expectList(s, "FuncDecl")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "FuncDecl") {
-		return nil, fmt.Errorf("not a FuncDecl node")
+		return nil, ErrExpectedNodeType("FuncDecl", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	nameVal, ok := b.requireKeyword(args, "name", "FuncDecl")
 	if !ok {
-		return nil, fmt.Errorf("missing name")
+		return nil, ErrMissingField("name")
 	}
 
 	typeVal, ok := b.requireKeyword(args, "type", "FuncDecl")
 	if !ok {
-		return nil, fmt.Errorf("missing type")
+		return nil, ErrMissingField("type")
 	}
 
 	name, err := b.buildIdent(nameVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid name: %v", err)
+		return nil, ErrInvalidField("name", err)
 	}
 
 	funcType, err := b.buildFuncType(typeVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid type: %v", err)
+		return nil, ErrInvalidField("type", err)
 	}
 
 	// Optional recv
@@ -876,7 +876,7 @@ func (b *Builder) buildFuncDecl(s sexp.SExp) (*ast.FuncDecl, error) {
 	if recvVal, ok := args["recv"]; ok {
 		recv, err = b.buildOptionalFieldList(recvVal)
 		if err != nil {
-			return nil, fmt.Errorf("invalid recv: %v", err)
+			return nil, ErrInvalidField("recv", err)
 		}
 	}
 
@@ -885,7 +885,7 @@ func (b *Builder) buildFuncDecl(s sexp.SExp) (*ast.FuncDecl, error) {
 	if bodyVal, ok := args["body"]; ok {
 		body, err = b.buildOptionalBlockStmt(bodyVal)
 		if err != nil {
-			return nil, fmt.Errorf("invalid body: %v", err)
+			return nil, ErrInvalidField("body", err)
 		}
 	}
 
@@ -901,16 +901,16 @@ func (b *Builder) buildFuncDecl(s sexp.SExp) (*ast.FuncDecl, error) {
 func (b *Builder) buildDecl(s sexp.SExp) (ast.Decl, error) {
 	list, ok := b.expectList(s, "declaration")
 	if !ok {
-		return nil, fmt.Errorf("expected list")
+		return nil, ErrNotList
 	}
 
 	if len(list.Elements) == 0 {
-		return nil, fmt.Errorf("empty list")
+		return nil, ErrEmptyList
 	}
 
 	sym, ok := list.Elements[0].(*sexp.Symbol)
 	if !ok {
-		return nil, fmt.Errorf("expected symbol as first element")
+		return nil, ErrExpectedSymbol
 	}
 
 	switch sym.Value {
@@ -919,7 +919,7 @@ func (b *Builder) buildDecl(s sexp.SExp) (ast.Decl, error) {
 	case "FuncDecl":
 		return b.buildFuncDecl(s)
 	default:
-		return nil, fmt.Errorf("unknown declaration type: %s", sym.Value)
+		return nil, ErrUnknownNodeType(sym.Value, "declaration")
 	}
 }
 
@@ -927,54 +927,54 @@ func (b *Builder) buildDecl(s sexp.SExp) (ast.Decl, error) {
 func (b *Builder) buildFileInfo(s sexp.SExp) (*FileInfo, error) {
 	list, ok := b.expectList(s, "FileInfo")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "FileInfo") {
-		return nil, fmt.Errorf("not a FileInfo node")
+		return nil, ErrExpectedNodeType("FileInfo", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	nameVal, ok := b.requireKeyword(args, "name", "FileInfo")
 	if !ok {
-		return nil, fmt.Errorf("missing name")
+		return nil, ErrMissingField("name")
 	}
 
 	baseVal, ok := b.requireKeyword(args, "base", "FileInfo")
 	if !ok {
-		return nil, fmt.Errorf("missing base")
+		return nil, ErrMissingField("base")
 	}
 
 	sizeVal, ok := b.requireKeyword(args, "size", "FileInfo")
 	if !ok {
-		return nil, fmt.Errorf("missing size")
+		return nil, ErrMissingField("size")
 	}
 
 	linesVal, ok := b.requireKeyword(args, "lines", "FileInfo")
 	if !ok {
-		return nil, fmt.Errorf("missing lines")
+		return nil, ErrMissingField("lines")
 	}
 
 	name, err := b.parseString(nameVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid name: %v", err)
+		return nil, ErrInvalidField("name", err)
 	}
 
 	base, err := b.parseInt(baseVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid base: %v", err)
+		return nil, ErrInvalidField("base", err)
 	}
 
 	size, err := b.parseInt(sizeVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid size: %v", err)
+		return nil, ErrInvalidField("size", err)
 	}
 
 	// Parse lines list
 	linesList, ok := b.expectList(linesVal, "FileInfo lines")
 	if !ok {
-		return nil, fmt.Errorf("invalid lines")
+		return nil, ErrInvalidField("lines", ErrNotList)
 	}
 
 	var lines []int
@@ -998,34 +998,34 @@ func (b *Builder) buildFileInfo(s sexp.SExp) (*FileInfo, error) {
 func (b *Builder) buildFileSet(s sexp.SExp) (*FileSetInfo, error) {
 	list, ok := b.expectList(s, "FileSet")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "FileSet") {
-		return nil, fmt.Errorf("not a FileSet node")
+		return nil, ErrExpectedNodeType("FileSet", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	baseVal, ok := b.requireKeyword(args, "base", "FileSet")
 	if !ok {
-		return nil, fmt.Errorf("missing base")
+		return nil, ErrMissingField("base")
 	}
 
 	filesVal, ok := b.requireKeyword(args, "files", "FileSet")
 	if !ok {
-		return nil, fmt.Errorf("missing files")
+		return nil, ErrMissingField("files")
 	}
 
 	base, err := b.parseInt(baseVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid base: %v", err)
+		return nil, ErrInvalidField("base", err)
 	}
 
 	// Parse files list
 	filesList, ok := b.expectList(filesVal, "FileSet files")
 	if !ok {
-		return nil, fmt.Errorf("invalid files")
+		return nil, ErrInvalidField("files", ErrNotList)
 	}
 
 	var files []FileInfo
@@ -1047,33 +1047,33 @@ func (b *Builder) buildFileSet(s sexp.SExp) (*FileSetInfo, error) {
 func (b *Builder) BuildFile(s sexp.SExp) (*ast.File, error) {
 	list, ok := b.expectList(s, "File")
 	if !ok {
-		return nil, fmt.Errorf("not a list")
+		return nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "File") {
-		return nil, fmt.Errorf("not a File node")
+		return nil, ErrExpectedNodeType("File", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	packageVal, ok := b.requireKeyword(args, "package", "File")
 	if !ok {
-		return nil, fmt.Errorf("missing package")
+		return nil, ErrMissingField("package")
 	}
 
 	nameVal, ok := b.requireKeyword(args, "name", "File")
 	if !ok {
-		return nil, fmt.Errorf("missing name")
+		return nil, ErrMissingField("name")
 	}
 
 	declsVal, ok := b.requireKeyword(args, "decls", "File")
 	if !ok {
-		return nil, fmt.Errorf("missing decls")
+		return nil, ErrMissingField("decls")
 	}
 
 	name, err := b.buildIdent(nameVal)
 	if err != nil {
-		return nil, fmt.Errorf("invalid name: %v", err)
+		return nil, ErrInvalidField("name", err)
 	}
 
 	// Build declarations list
@@ -1083,7 +1083,7 @@ func (b *Builder) BuildFile(s sexp.SExp) (*ast.File, error) {
 		for _, declSexp := range declsList.Elements {
 			decl, err := b.buildDecl(declSexp)
 			if err != nil {
-				return nil, fmt.Errorf("invalid declaration: %v", err)
+				return nil, ErrInvalidField("declaration", err)
 			}
 			decls = append(decls, decl)
 		}
@@ -1104,29 +1104,29 @@ func (b *Builder) BuildFile(s sexp.SExp) (*ast.File, error) {
 func (b *Builder) BuildProgram(s sexp.SExp) (*token.FileSet, []*ast.File, error) {
 	list, ok := b.expectList(s, "Program")
 	if !ok {
-		return nil, nil, fmt.Errorf("not a list")
+		return nil, nil, ErrNotList
 	}
 
 	if !b.expectSymbol(list.Elements[0], "Program") {
-		return nil, nil, fmt.Errorf("not a Program node")
+		return nil, nil, ErrExpectedNodeType("Program", "unknown")
 	}
 
 	args := b.parseKeywordArgs(list.Elements)
 
 	filesetVal, ok := b.requireKeyword(args, "fileset", "Program")
 	if !ok {
-		return nil, nil, fmt.Errorf("missing fileset")
+		return nil, nil, ErrMissingField("fileset")
 	}
 
 	filesVal, ok := b.requireKeyword(args, "files", "Program")
 	if !ok {
-		return nil, nil, fmt.Errorf("missing files")
+		return nil, nil, ErrMissingField("files")
 	}
 
 	// Build FileSet
 	fileSetInfo, err := b.buildFileSet(filesetVal)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid fileset: %v", err)
+		return nil, nil, ErrInvalidField("fileset", err)
 	}
 
 	// Create token.FileSet from FileSetInfo
@@ -1143,7 +1143,7 @@ func (b *Builder) BuildProgram(s sexp.SExp) (*token.FileSet, []*ast.File, error)
 		for _, fileSexp := range filesList.Elements {
 			file, err := b.BuildFile(fileSexp)
 			if err != nil {
-				return nil, nil, fmt.Errorf("invalid file: %v", err)
+				return nil, nil, ErrInvalidField("file", err)
 			}
 			files = append(files, file)
 		}
