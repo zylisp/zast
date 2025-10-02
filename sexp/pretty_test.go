@@ -137,7 +137,7 @@ func TestBodyFormatting(t *testing.T) {
 }
 
 func TestCustomConfiguration(t *testing.T) {
-	config := &Config{
+	config := &PrettyPrintConfig{
 		IndentWidth:   4,
 		MaxLineWidth:  40,
 		AlignKeywords: false,
@@ -166,7 +166,7 @@ func TestCustomConfiguration(t *testing.T) {
 }
 
 func TestAlignmentDisabled(t *testing.T) {
-	config := &Config{
+	config := &PrettyPrintConfig{
 		IndentWidth:   2,
 		MaxLineWidth:  80,
 		AlignKeywords: false,
@@ -218,7 +218,7 @@ func TestAlignmentDisabled(t *testing.T) {
 }
 
 func TestCompactLimit(t *testing.T) {
-	config := &Config{
+	config := &PrettyPrintConfig{
 		IndentWidth:   2,
 		MaxLineWidth:  80,
 		AlignKeywords: true,
@@ -349,7 +349,7 @@ func TestDefaultStyle(t *testing.T) {
 }
 
 func TestMaxLineWidth(t *testing.T) {
-	config := &Config{
+	config := &PrettyPrintConfig{
 		IndentWidth:   2,
 		MaxLineWidth:  30, // Small line width
 		AlignKeywords: true,

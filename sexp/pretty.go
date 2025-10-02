@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// Config holds configuration for the pretty printer
-type Config struct {
+// PrettyPrintConfig holds configuration for the pretty printer
+type PrettyPrintConfig struct {
 	IndentWidth   int  // Spaces per indent level (default: 2)
 	MaxLineWidth  int  // Target maximum line width (default: 80)
 	AlignKeywords bool // Align keyword-value pairs (default: true)
@@ -14,9 +14,9 @@ type Config struct {
 	CompactLimit  int  // Max chars for compact lists (default: 60)
 }
 
-// DefaultConfig returns the default configuration
-func DefaultConfig() *Config {
-	return &Config{
+// DefaultPrettyPrintConfig returns the default configuration
+func DefaultPrettyPrintConfig() *PrettyPrintConfig {
+	return &PrettyPrintConfig{
 		IndentWidth:   2,
 		MaxLineWidth:  80,
 		AlignKeywords: true,
@@ -86,16 +86,16 @@ type PrettyPrinter struct {
 	indentWidth   int
 	maxLineWidth  int
 	currentColumn int
-	config        *Config
+	config        *PrettyPrintConfig
 }
 
 // NewPrettyPrinter creates a new pretty printer with default config
 func NewPrettyPrinter() *PrettyPrinter {
-	return NewPrettyPrinterWithConfig(DefaultConfig())
+	return NewPrettyPrinterWithConfig(DefaultPrettyPrintConfig())
 }
 
 // NewPrettyPrinterWithConfig creates a printer with custom config
-func NewPrettyPrinterWithConfig(config *Config) *PrettyPrinter {
+func NewPrettyPrinterWithConfig(config *PrettyPrintConfig) *PrettyPrinter {
 	return &PrettyPrinter{
 		indentWidth:  config.IndentWidth,
 		maxLineWidth: config.MaxLineWidth,

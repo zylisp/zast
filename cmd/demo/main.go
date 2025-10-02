@@ -67,7 +67,7 @@ func main() {
 	// Parse and pretty print the S-expression
 	parser := sexp.NewParser(sexpText)
 	sexpTree, _ := parser.Parse()
-	config := &sexp.Config{
+	config := &sexp.PrettyPrintConfig{
 		IndentWidth:   2,
 		MaxLineWidth:  100,
 		AlignKeywords: true,
