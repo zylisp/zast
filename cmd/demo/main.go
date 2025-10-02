@@ -44,19 +44,32 @@ func main() {
 	// Set up configuration
 	config := zast.DefaultConfig()
 
-	// Create temporary directory for our work
-	tmpDir, err := os.MkdirTemp("", "zast-*")
+	// Configure output based on flags
+	if *keepFiles {
+		config.Output.KeepFiles = true
+	}
+
+	// Get build directories
+	buildDir, err := config.Output.GetBuildDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if !*keepFiles {
-		defer os.RemoveAll(tmpDir)
-	} else {
-		fmt.Printf("Files will be preserved in: %s\n", tmpDir)
+	astBuildDir, err := config.Output.GetASTBuildDir()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	fmt.Printf("Working directory: %s\n\n", tmpDir)
+	// Clean up unless keeping files
+	if !config.Output.KeepFiles {
+		defer os.RemoveAll(buildDir)
+	} else {
+		fmt.Printf("Build directory: %s\n", buildDir)
+		fmt.Printf("AST directory: %s\n", astBuildDir)
+	}
+
+	fmt.Printf("Working directory: %s\n", buildDir)
+	fmt.Printf("AST directory: %s\n\n", astBuildDir)
 
 	// Step 1: Parse Go source to AST
 	fmt.Println("Step 1: Parsing Go source to AST...")
@@ -81,7 +94,7 @@ func main() {
 
 	// Step 3: Write S-expression to file
 	fmt.Println("Step 3: Writing S-expression to file...")
-	sexpPath := writeSexpToFile(tmpDir, sexpText)
+	sexpPath := writeSexpToFile(astBuildDir, sexpText, config.Output.ASTFileExt)
 	fmt.Printf("✓ Written to %s\n\n", sexpPath)
 
 	// Step 4: Read S-expression from file
@@ -110,12 +123,12 @@ func main() {
 
 	// Step 8: Write Go source to file
 	fmt.Println("Step 8: Writing Go source to file...")
-	goPath := writeGoToFile(tmpDir, goSource)
+	goPath := writeGoToFile(buildDir, goSource)
 	fmt.Printf("✓ Written to %s\n\n", goPath)
 
 	// Step 9: Compile Go source to binary
 	fmt.Println("Step 9: Compiling Go source to binary...")
-	binaryPath := compileGo(tmpDir, goPath)
+	binaryPath := compileGo(buildDir, goPath)
 	fmt.Printf("✓ Compiled to %s\n\n", binaryPath)
 
 	// Step 10: Execute binary
@@ -167,8 +180,8 @@ func astToSexp(fset *token.FileSet, file *ast.File) string {
 }
 
 // Step 3: Write S-expression to File
-func writeSexpToFile(dir string, sexpText string) string {
-	path := filepath.Join(dir, "hello.sexp")
+func writeSexpToFile(dir string, sexpText string, ext string) string {
+	path := filepath.Join(dir, "hello"+ext)
 	err := os.WriteFile(path, []byte(sexpText), 0644)
 	if err != nil {
 		log.Fatalf("Failed to write S-expression to file: %v", err)
