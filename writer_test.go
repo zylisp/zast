@@ -409,12 +409,13 @@ func TestWriteBlockStmtNil(t *testing.T) {
 func TestWriteExprUnknownType(t *testing.T) {
 	writer := NewWriter(nil)
 
-	// Create an unsupported expression type (e.g., ParenExpr)
-	parenExpr := &ast.ParenExpr{
-		X: &ast.Ident{Name: "foo"},
+	// Create an unsupported expression type (e.g., FuncLit - not yet implemented)
+	funcLit := &ast.FuncLit{
+		Type: &ast.FuncType{},
+		Body: &ast.BlockStmt{},
 	}
 
-	err := writer.writeExpr(parenExpr)
+	err := writer.writeExpr(funcLit)
 	if err == nil {
 		t.Fatalf("expected error for unknown expression type")
 	}
@@ -423,10 +424,12 @@ func TestWriteExprUnknownType(t *testing.T) {
 func TestWriteStmtUnknownType(t *testing.T) {
 	writer := NewWriter(nil)
 
-	// Create an unsupported statement type (e.g., ReturnStmt)
-	returnStmt := &ast.ReturnStmt{}
+	// Create an unsupported statement type (e.g., ForStmt - not yet implemented)
+	forStmt := &ast.ForStmt{
+		Body: &ast.BlockStmt{},
+	}
 
-	err := writer.writeStmt(returnStmt)
+	err := writer.writeStmt(forStmt)
 	if err == nil {
 		t.Fatalf("expected error for unknown statement type")
 	}
@@ -444,17 +447,8 @@ func TestWriteDeclUnknownType(t *testing.T) {
 	}
 }
 
-func TestWriteSpecUnknownType(t *testing.T) {
-	writer := NewWriter(nil)
-
-	// Create an unsupported spec type (e.g., TypeSpec)
-	typeSpec := &ast.TypeSpec{}
-
-	err := writer.writeSpec(typeSpec)
-	if err == nil {
-		t.Fatalf("expected error for unknown spec type")
-	}
-}
+// Note: TestWriteSpecUnknownType removed because all spec types (ImportSpec, ValueSpec, TypeSpec)
+// are now supported in Phase 2.
 
 // Helper function
 func contains(s, substr string) bool {
