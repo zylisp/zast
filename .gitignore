@@ -33,3 +33,6 @@ go.work.sum
 
 # Zast build artifacts
 /target
+
+# AI
+.claude
