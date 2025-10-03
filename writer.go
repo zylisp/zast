@@ -81,8 +81,30 @@ func (w *Writer) writePos(pos token.Pos) {
 	w.buf.WriteString(fmt.Sprintf("%d", pos))
 }
 
+func (w *Writer) writeBool(b bool) {
+	if b {
+		w.writeSymbol("true")
+	} else {
+		w.writeSymbol("false")
+	}
+}
+
+func (w *Writer) writeChanDir(dir ast.ChanDir) {
+	switch dir {
+	case ast.SEND:
+		w.writeSymbol("SEND")
+	case ast.RECV:
+		w.writeSymbol("RECV")
+	case ast.SEND | ast.RECV:
+		w.writeSymbol("SEND_RECV")
+	default:
+		w.writeSymbol("SEND_RECV")
+	}
+}
+
 func (w *Writer) writeToken(tok token.Token) {
 	switch tok {
+	// Keywords
 	case token.IMPORT:
 		w.writeSymbol("IMPORT")
 	case token.CONST:
@@ -91,6 +113,16 @@ func (w *Writer) writeToken(tok token.Token) {
 		w.writeSymbol("TYPE")
 	case token.VAR:
 		w.writeSymbol("VAR")
+	case token.BREAK:
+		w.writeSymbol("BREAK")
+	case token.CONTINUE:
+		w.writeSymbol("CONTINUE")
+	case token.GOTO:
+		w.writeSymbol("GOTO")
+	case token.FALLTHROUGH:
+		w.writeSymbol("FALLTHROUGH")
+
+	// Literal types
 	case token.INT:
 		w.writeSymbol("INT")
 	case token.FLOAT:
@@ -101,6 +133,85 @@ func (w *Writer) writeToken(tok token.Token) {
 		w.writeSymbol("CHAR")
 	case token.STRING:
 		w.writeSymbol("STRING")
+
+	// Operators
+	case token.ADD:
+		w.writeSymbol("ADD")
+	case token.SUB:
+		w.writeSymbol("SUB")
+	case token.MUL:
+		w.writeSymbol("MUL")
+	case token.QUO:
+		w.writeSymbol("QUO")
+	case token.REM:
+		w.writeSymbol("REM")
+	case token.AND:
+		w.writeSymbol("AND")
+	case token.OR:
+		w.writeSymbol("OR")
+	case token.XOR:
+		w.writeSymbol("XOR")
+	case token.SHL:
+		w.writeSymbol("SHL")
+	case token.SHR:
+		w.writeSymbol("SHR")
+	case token.AND_NOT:
+		w.writeSymbol("AND_NOT")
+	case token.LAND:
+		w.writeSymbol("LAND")
+	case token.LOR:
+		w.writeSymbol("LOR")
+	case token.ARROW:
+		w.writeSymbol("ARROW")
+	case token.INC:
+		w.writeSymbol("INC")
+	case token.DEC:
+		w.writeSymbol("DEC")
+
+	// Comparison
+	case token.EQL:
+		w.writeSymbol("EQL")
+	case token.LSS:
+		w.writeSymbol("LSS")
+	case token.GTR:
+		w.writeSymbol("GTR")
+	case token.ASSIGN:
+		w.writeSymbol("ASSIGN")
+	case token.NOT:
+		w.writeSymbol("NOT")
+	case token.NEQ:
+		w.writeSymbol("NEQ")
+	case token.LEQ:
+		w.writeSymbol("LEQ")
+	case token.GEQ:
+		w.writeSymbol("GEQ")
+	case token.DEFINE:
+		w.writeSymbol("DEFINE")
+
+	// Assignment operators
+	case token.ADD_ASSIGN:
+		w.writeSymbol("ADD_ASSIGN")
+	case token.SUB_ASSIGN:
+		w.writeSymbol("SUB_ASSIGN")
+	case token.MUL_ASSIGN:
+		w.writeSymbol("MUL_ASSIGN")
+	case token.QUO_ASSIGN:
+		w.writeSymbol("QUO_ASSIGN")
+	case token.REM_ASSIGN:
+		w.writeSymbol("REM_ASSIGN")
+	case token.AND_ASSIGN:
+		w.writeSymbol("AND_ASSIGN")
+	case token.OR_ASSIGN:
+		w.writeSymbol("OR_ASSIGN")
+	case token.XOR_ASSIGN:
+		w.writeSymbol("XOR_ASSIGN")
+	case token.SHL_ASSIGN:
+		w.writeSymbol("SHL_ASSIGN")
+	case token.SHR_ASSIGN:
+		w.writeSymbol("SHR_ASSIGN")
+	case token.AND_NOT_ASSIGN:
+		w.writeSymbol("AND_NOT_ASSIGN")
+
 	default:
 		w.writeSymbol("ILLEGAL")
 	}
@@ -218,6 +329,185 @@ func (w *Writer) writeCallExpr(expr *ast.CallExpr) error {
 	return nil
 }
 
+func (w *Writer) writeBinaryExpr(expr *ast.BinaryExpr) error {
+	w.openList()
+	w.writeSymbol("BinaryExpr")
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(expr.X); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("oppos")
+	w.writeSpace()
+	w.writePos(expr.OpPos)
+	w.writeSpace()
+	w.writeKeyword("op")
+	w.writeSpace()
+	w.writeToken(expr.Op)
+	w.writeSpace()
+	w.writeKeyword("y")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Y); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+func (w *Writer) writeParenExpr(expr *ast.ParenExpr) error {
+	w.openList()
+	w.writeSymbol("ParenExpr")
+	w.writeSpace()
+	w.writeKeyword("lparen")
+	w.writeSpace()
+	w.writePos(expr.Lparen)
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(expr.X); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("rparen")
+	w.writeSpace()
+	w.writePos(expr.Rparen)
+	w.closeList()
+	return nil
+}
+
+func (w *Writer) writeStarExpr(expr *ast.StarExpr) error {
+	w.openList()
+	w.writeSymbol("StarExpr")
+	w.writeSpace()
+	w.writeKeyword("star")
+	w.writeSpace()
+	w.writePos(expr.Star)
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(expr.X); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+func (w *Writer) writeIndexExpr(expr *ast.IndexExpr) error {
+	w.openList()
+	w.writeSymbol("IndexExpr")
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(expr.X); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("lbrack")
+	w.writeSpace()
+	w.writePos(expr.Lbrack)
+	w.writeSpace()
+	w.writeKeyword("index")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Index); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("rbrack")
+	w.writeSpace()
+	w.writePos(expr.Rbrack)
+	w.closeList()
+	return nil
+}
+
+func (w *Writer) writeSliceExpr(expr *ast.SliceExpr) error {
+	w.openList()
+	w.writeSymbol("SliceExpr")
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(expr.X); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("lbrack")
+	w.writeSpace()
+	w.writePos(expr.Lbrack)
+	w.writeSpace()
+	w.writeKeyword("low")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Low); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("high")
+	w.writeSpace()
+	if err := w.writeExpr(expr.High); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("max")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Max); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("slice3")
+	w.writeSpace()
+	w.writeBool(expr.Slice3)
+	w.writeSpace()
+	w.writeKeyword("rbrack")
+	w.writeSpace()
+	w.writePos(expr.Rbrack)
+	w.closeList()
+	return nil
+}
+
+func (w *Writer) writeKeyValueExpr(expr *ast.KeyValueExpr) error {
+	w.openList()
+	w.writeSymbol("KeyValueExpr")
+	w.writeSpace()
+	w.writeKeyword("key")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Key); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("colon")
+	w.writeSpace()
+	w.writePos(expr.Colon)
+	w.writeSpace()
+	w.writeKeyword("value")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Value); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+func (w *Writer) writeUnaryExpr(expr *ast.UnaryExpr) error {
+	w.openList()
+	w.writeSymbol("UnaryExpr")
+	w.writeSpace()
+	w.writeKeyword("oppos")
+	w.writeSpace()
+	w.writePos(expr.OpPos)
+	w.writeSpace()
+	w.writeKeyword("op")
+	w.writeSpace()
+	w.writeToken(expr.Op)
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(expr.X); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
 // Expression dispatcher
 func (w *Writer) writeExpr(expr ast.Expr) error {
 	if expr == nil {
@@ -234,6 +524,26 @@ func (w *Writer) writeExpr(expr ast.Expr) error {
 		return w.writeCallExpr(e)
 	case *ast.SelectorExpr:
 		return w.writeSelectorExpr(e)
+	case *ast.UnaryExpr:
+		return w.writeUnaryExpr(e)
+	case *ast.BinaryExpr:
+		return w.writeBinaryExpr(e)
+	case *ast.ParenExpr:
+		return w.writeParenExpr(e)
+	case *ast.StarExpr:
+		return w.writeStarExpr(e)
+	case *ast.IndexExpr:
+		return w.writeIndexExpr(e)
+	case *ast.SliceExpr:
+		return w.writeSliceExpr(e)
+	case *ast.KeyValueExpr:
+		return w.writeKeyValueExpr(e)
+	case *ast.ArrayType:
+		return w.writeArrayType(e)
+	case *ast.MapType:
+		return w.writeMapType(e)
+	case *ast.ChanType:
+		return w.writeChanType(e)
 	default:
 		return ErrUnknownExprType(expr)
 	}
@@ -278,6 +588,196 @@ func (w *Writer) writeBlockStmt(stmt *ast.BlockStmt) error {
 	return nil
 }
 
+// writeReturnStmt writes a ReturnStmt node
+func (w *Writer) writeReturnStmt(stmt *ast.ReturnStmt) error {
+	w.openList()
+	w.writeSymbol("ReturnStmt")
+	w.writeSpace()
+	w.writeKeyword("return")
+	w.writeSpace()
+	w.writePos(stmt.Return)
+	w.writeSpace()
+	w.writeKeyword("results")
+	w.writeSpace()
+	if err := w.writeExprList(stmt.Results); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeAssignStmt writes an AssignStmt node
+func (w *Writer) writeAssignStmt(stmt *ast.AssignStmt) error {
+	w.openList()
+	w.writeSymbol("AssignStmt")
+	w.writeSpace()
+	w.writeKeyword("lhs")
+	w.writeSpace()
+	if err := w.writeExprList(stmt.Lhs); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("tokpos")
+	w.writeSpace()
+	w.writePos(stmt.TokPos)
+	w.writeSpace()
+	w.writeKeyword("tok")
+	w.writeSpace()
+	w.writeToken(stmt.Tok)
+	w.writeSpace()
+	w.writeKeyword("rhs")
+	w.writeSpace()
+	if err := w.writeExprList(stmt.Rhs); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeIncDecStmt writes an IncDecStmt node
+func (w *Writer) writeIncDecStmt(stmt *ast.IncDecStmt) error {
+	w.openList()
+	w.writeSymbol("IncDecStmt")
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.X); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("tokpos")
+	w.writeSpace()
+	w.writePos(stmt.TokPos)
+	w.writeSpace()
+	w.writeKeyword("tok")
+	w.writeSpace()
+	w.writeToken(stmt.Tok)
+	w.closeList()
+	return nil
+}
+
+// writeBranchStmt writes a BranchStmt node
+func (w *Writer) writeBranchStmt(stmt *ast.BranchStmt) error {
+	w.openList()
+	w.writeSymbol("BranchStmt")
+	w.writeSpace()
+	w.writeKeyword("tokpos")
+	w.writeSpace()
+	w.writePos(stmt.TokPos)
+	w.writeSpace()
+	w.writeKeyword("tok")
+	w.writeSpace()
+	w.writeToken(stmt.Tok)
+	w.writeSpace()
+	w.writeKeyword("label")
+	w.writeSpace()
+	if err := w.writeIdent(stmt.Label); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeDeferStmt writes a DeferStmt node
+func (w *Writer) writeDeferStmt(stmt *ast.DeferStmt) error {
+	w.openList()
+	w.writeSymbol("DeferStmt")
+	w.writeSpace()
+	w.writeKeyword("defer")
+	w.writeSpace()
+	w.writePos(stmt.Defer)
+	w.writeSpace()
+	w.writeKeyword("call")
+	w.writeSpace()
+	if err := w.writeCallExpr(stmt.Call); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeGoStmt writes a GoStmt node
+func (w *Writer) writeGoStmt(stmt *ast.GoStmt) error {
+	w.openList()
+	w.writeSymbol("GoStmt")
+	w.writeSpace()
+	w.writeKeyword("go")
+	w.writeSpace()
+	w.writePos(stmt.Go)
+	w.writeSpace()
+	w.writeKeyword("call")
+	w.writeSpace()
+	if err := w.writeCallExpr(stmt.Call); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeSendStmt writes a SendStmt node
+func (w *Writer) writeSendStmt(stmt *ast.SendStmt) error {
+	w.openList()
+	w.writeSymbol("SendStmt")
+	w.writeSpace()
+	w.writeKeyword("chan")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.Chan); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("arrow")
+	w.writeSpace()
+	w.writePos(stmt.Arrow)
+	w.writeSpace()
+	w.writeKeyword("value")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.Value); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeEmptyStmt writes an EmptyStmt node
+func (w *Writer) writeEmptyStmt(stmt *ast.EmptyStmt) error {
+	w.openList()
+	w.writeSymbol("EmptyStmt")
+	w.writeSpace()
+	w.writeKeyword("semicolon")
+	w.writeSpace()
+	w.writePos(stmt.Semicolon)
+	w.writeSpace()
+	w.writeKeyword("implicit")
+	w.writeSpace()
+	w.writeBool(stmt.Implicit)
+	w.closeList()
+	return nil
+}
+
+// writeLabeledStmt writes a LabeledStmt node
+func (w *Writer) writeLabeledStmt(stmt *ast.LabeledStmt) error {
+	w.openList()
+	w.writeSymbol("LabeledStmt")
+	w.writeSpace()
+	w.writeKeyword("label")
+	w.writeSpace()
+	if err := w.writeIdent(stmt.Label); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("colon")
+	w.writeSpace()
+	w.writePos(stmt.Colon)
+	w.writeSpace()
+	w.writeKeyword("stmt")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Stmt); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
 // Statement dispatcher
 func (w *Writer) writeStmt(stmt ast.Stmt) error {
 	if stmt == nil {
@@ -290,6 +790,24 @@ func (w *Writer) writeStmt(stmt ast.Stmt) error {
 		return w.writeExprStmt(s)
 	case *ast.BlockStmt:
 		return w.writeBlockStmt(s)
+	case *ast.ReturnStmt:
+		return w.writeReturnStmt(s)
+	case *ast.AssignStmt:
+		return w.writeAssignStmt(s)
+	case *ast.IncDecStmt:
+		return w.writeIncDecStmt(s)
+	case *ast.BranchStmt:
+		return w.writeBranchStmt(s)
+	case *ast.DeferStmt:
+		return w.writeDeferStmt(s)
+	case *ast.GoStmt:
+		return w.writeGoStmt(s)
+	case *ast.SendStmt:
+		return w.writeSendStmt(s)
+	case *ast.EmptyStmt:
+		return w.writeEmptyStmt(s)
+	case *ast.LabeledStmt:
+		return w.writeLabeledStmt(s)
 	default:
 		return ErrUnknownStmtType(stmt)
 	}
@@ -388,6 +906,80 @@ func (w *Writer) writeFuncType(typ *ast.FuncType) error {
 	return nil
 }
 
+// writeArrayType writes an ArrayType node
+func (w *Writer) writeArrayType(typ *ast.ArrayType) error {
+	w.openList()
+	w.writeSymbol("ArrayType")
+	w.writeSpace()
+	w.writeKeyword("lbrack")
+	w.writeSpace()
+	w.writePos(typ.Lbrack)
+	w.writeSpace()
+	w.writeKeyword("len")
+	w.writeSpace()
+	if err := w.writeExpr(typ.Len); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("elt")
+	w.writeSpace()
+	if err := w.writeExpr(typ.Elt); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeMapType writes a MapType node
+func (w *Writer) writeMapType(typ *ast.MapType) error {
+	w.openList()
+	w.writeSymbol("MapType")
+	w.writeSpace()
+	w.writeKeyword("map")
+	w.writeSpace()
+	w.writePos(typ.Map)
+	w.writeSpace()
+	w.writeKeyword("key")
+	w.writeSpace()
+	if err := w.writeExpr(typ.Key); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("value")
+	w.writeSpace()
+	if err := w.writeExpr(typ.Value); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeChanType writes a ChanType node
+func (w *Writer) writeChanType(typ *ast.ChanType) error {
+	w.openList()
+	w.writeSymbol("ChanType")
+	w.writeSpace()
+	w.writeKeyword("begin")
+	w.writeSpace()
+	w.writePos(typ.Begin)
+	w.writeSpace()
+	w.writeKeyword("arrow")
+	w.writeSpace()
+	w.writePos(typ.Arrow)
+	w.writeSpace()
+	w.writeKeyword("dir")
+	w.writeSpace()
+	w.writeChanDir(typ.Dir)
+	w.writeSpace()
+	w.writeKeyword("value")
+	w.writeSpace()
+	if err := w.writeExpr(typ.Value); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
 func (w *Writer) writeImportSpec(spec *ast.ImportSpec) error {
 	w.openList()
 	w.writeSymbol("ImportSpec")
@@ -419,6 +1011,76 @@ func (w *Writer) writeImportSpec(spec *ast.ImportSpec) error {
 	return nil
 }
 
+// writeValueSpec writes a ValueSpec node
+func (w *Writer) writeValueSpec(spec *ast.ValueSpec) error {
+	w.openList()
+	w.writeSymbol("ValueSpec")
+	w.writeSpace()
+	w.writeKeyword("doc")
+	w.writeSpace()
+	w.writeSymbol("nil")
+	w.writeSpace()
+	w.writeKeyword("names")
+	w.writeSpace()
+	if err := w.writeIdentList(spec.Names); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("type")
+	w.writeSpace()
+	if err := w.writeExpr(spec.Type); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("values")
+	w.writeSpace()
+	if err := w.writeExprList(spec.Values); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("comment")
+	w.writeSpace()
+	w.writeSymbol("nil")
+	w.closeList()
+	return nil
+}
+
+// writeTypeSpec writes a TypeSpec node
+func (w *Writer) writeTypeSpec(spec *ast.TypeSpec) error {
+	w.openList()
+	w.writeSymbol("TypeSpec")
+	w.writeSpace()
+	w.writeKeyword("doc")
+	w.writeSpace()
+	w.writeSymbol("nil")
+	w.writeSpace()
+	w.writeKeyword("name")
+	w.writeSpace()
+	if err := w.writeIdent(spec.Name); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("typeparams")
+	w.writeSpace()
+	w.writeSymbol("nil")
+	w.writeSpace()
+	w.writeKeyword("assign")
+	w.writeSpace()
+	w.writePos(spec.Assign)
+	w.writeSpace()
+	w.writeKeyword("type")
+	w.writeSpace()
+	if err := w.writeExpr(spec.Type); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("comment")
+	w.writeSpace()
+	w.writeSymbol("nil")
+	w.closeList()
+	return nil
+}
+
 // Spec dispatcher
 func (w *Writer) writeSpec(spec ast.Spec) error {
 	if spec == nil {
@@ -429,6 +1091,10 @@ func (w *Writer) writeSpec(spec ast.Spec) error {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		return w.writeImportSpec(s)
+	case *ast.ValueSpec:
+		return w.writeValueSpec(s)
+	case *ast.TypeSpec:
+		return w.writeTypeSpec(s)
 	default:
 		return ErrUnknownSpecType(spec)
 	}

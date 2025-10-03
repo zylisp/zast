@@ -62,17 +62,40 @@ var formStyles = map[string]FormStyle{
 	"Field":     StyleKeywordPairs,
 
 	// Statements
-	"BlockStmt": StyleBody,
-	"ExprStmt":  StyleKeywordPairs,
+	"BlockStmt":    StyleBody,
+	"ExprStmt":     StyleKeywordPairs,
+	"ReturnStmt":   StyleKeywordPairs,
+	"AssignStmt":   StyleKeywordPairs,
+	"IncDecStmt":   StyleCompact,
+	"BranchStmt":   StyleCompact,
+	"DeferStmt":    StyleKeywordPairs,
+	"GoStmt":       StyleKeywordPairs,
+	"SendStmt":     StyleKeywordPairs,
+	"EmptyStmt":    StyleCompact,
+	"LabeledStmt":  StyleKeywordPairs,
 
 	// Expressions
 	"CallExpr":     StyleKeywordPairs,
 	"SelectorExpr": StyleCompact,
 	"Ident":        StyleCompact,
 	"BasicLit":     StyleCompact,
+	"UnaryExpr":    StyleCompact,
+	"BinaryExpr":   StyleCompact,
+	"ParenExpr":    StyleCompact,
+	"StarExpr":     StyleCompact,
+	"IndexExpr":    StyleCompact,
+	"SliceExpr":    StyleKeywordPairs,
+	"KeyValueExpr": StyleCompact,
+
+	// Type nodes
+	"ArrayType": StyleKeywordPairs,
+	"MapType":   StyleKeywordPairs,
+	"ChanType":  StyleKeywordPairs,
 
 	// Specs
 	"ImportSpec": StyleKeywordPairs,
+	"ValueSpec":  StyleKeywordPairs,
+	"TypeSpec":   StyleKeywordPairs,
 
 	// Metadata
 	"CommentGroup": StyleList,

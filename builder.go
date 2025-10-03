@@ -191,6 +191,42 @@ func (b *Builder) parseNil(s sexp.SExp) bool {
 	return ok
 }
 
+// parseBool converts a symbol to a boolean value
+func (b *Builder) parseBool(s sexp.SExp) (bool, error) {
+	sym, ok := s.(*sexp.Symbol)
+	if !ok {
+		return false, ErrWrongType("symbol for bool", s)
+	}
+
+	switch sym.Value {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid bool value: %s", sym.Value)
+	}
+}
+
+// parseChanDir converts a symbol to a ChanDir value
+func (b *Builder) parseChanDir(s sexp.SExp) (ast.ChanDir, error) {
+	sym, ok := s.(*sexp.Symbol)
+	if !ok {
+		return 0, ErrWrongType("symbol for ChanDir", s)
+	}
+
+	switch sym.Value {
+	case "SEND":
+		return ast.SEND, nil
+	case "RECV":
+		return ast.RECV, nil
+	case "SEND_RECV":
+		return ast.SEND | ast.RECV, nil
+	default:
+		return 0, fmt.Errorf("unknown ChanDir: %s", sym.Value)
+	}
+}
+
 // parseToken converts a symbol to a token type
 func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 	sym, ok := s.(*sexp.Symbol)
@@ -199,6 +235,7 @@ func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 	}
 
 	switch sym.Value {
+	// Keywords
 	case "IMPORT":
 		return token.IMPORT, nil
 	case "CONST":
@@ -207,6 +244,16 @@ func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 		return token.TYPE, nil
 	case "VAR":
 		return token.VAR, nil
+	case "BREAK":
+		return token.BREAK, nil
+	case "CONTINUE":
+		return token.CONTINUE, nil
+	case "GOTO":
+		return token.GOTO, nil
+	case "FALLTHROUGH":
+		return token.FALLTHROUGH, nil
+
+	// Literal types
 	case "INT":
 		return token.INT, nil
 	case "FLOAT":
@@ -217,6 +264,85 @@ func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 		return token.CHAR, nil
 	case "STRING":
 		return token.STRING, nil
+
+	// Operators
+	case "ADD":
+		return token.ADD, nil
+	case "SUB":
+		return token.SUB, nil
+	case "MUL":
+		return token.MUL, nil
+	case "QUO":
+		return token.QUO, nil
+	case "REM":
+		return token.REM, nil
+	case "AND":
+		return token.AND, nil
+	case "OR":
+		return token.OR, nil
+	case "XOR":
+		return token.XOR, nil
+	case "SHL":
+		return token.SHL, nil
+	case "SHR":
+		return token.SHR, nil
+	case "AND_NOT":
+		return token.AND_NOT, nil
+	case "LAND":
+		return token.LAND, nil
+	case "LOR":
+		return token.LOR, nil
+	case "ARROW":
+		return token.ARROW, nil
+	case "INC":
+		return token.INC, nil
+	case "DEC":
+		return token.DEC, nil
+
+	// Comparison
+	case "EQL":
+		return token.EQL, nil
+	case "LSS":
+		return token.LSS, nil
+	case "GTR":
+		return token.GTR, nil
+	case "ASSIGN":
+		return token.ASSIGN, nil
+	case "NOT":
+		return token.NOT, nil
+	case "NEQ":
+		return token.NEQ, nil
+	case "LEQ":
+		return token.LEQ, nil
+	case "GEQ":
+		return token.GEQ, nil
+	case "DEFINE":
+		return token.DEFINE, nil
+
+	// Assignment operators
+	case "ADD_ASSIGN":
+		return token.ADD_ASSIGN, nil
+	case "SUB_ASSIGN":
+		return token.SUB_ASSIGN, nil
+	case "MUL_ASSIGN":
+		return token.MUL_ASSIGN, nil
+	case "QUO_ASSIGN":
+		return token.QUO_ASSIGN, nil
+	case "REM_ASSIGN":
+		return token.REM_ASSIGN, nil
+	case "AND_ASSIGN":
+		return token.AND_ASSIGN, nil
+	case "OR_ASSIGN":
+		return token.OR_ASSIGN, nil
+	case "XOR_ASSIGN":
+		return token.XOR_ASSIGN, nil
+	case "SHL_ASSIGN":
+		return token.SHL_ASSIGN, nil
+	case "SHR_ASSIGN":
+		return token.SHR_ASSIGN, nil
+	case "AND_NOT_ASSIGN":
+		return token.AND_NOT_ASSIGN, nil
+
 	default:
 		return token.ILLEGAL, ErrUnknownNodeType(sym.Value, "token")
 	}
@@ -420,6 +546,369 @@ func (b *Builder) buildCallExpr(s sexp.SExp) (*ast.CallExpr, error) {
 	}, nil
 }
 
+// buildBinaryExpr parses a BinaryExpr node
+func (b *Builder) buildBinaryExpr(s sexp.SExp) (*ast.BinaryExpr, error) {
+	list, ok := b.expectList(s, "BinaryExpr")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "BinaryExpr") {
+		return nil, ErrExpectedNodeType("BinaryExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	xVal, ok := b.requireKeyword(args, "x", "BinaryExpr")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	opposVal, ok := b.requireKeyword(args, "oppos", "BinaryExpr")
+	if !ok {
+		return nil, ErrMissingField("oppos")
+	}
+
+	opVal, ok := b.requireKeyword(args, "op", "BinaryExpr")
+	if !ok {
+		return nil, ErrMissingField("op")
+	}
+
+	yVal, ok := b.requireKeyword(args, "y", "BinaryExpr")
+	if !ok {
+		return nil, ErrMissingField("y")
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	op, err := b.parseToken(opVal)
+	if err != nil {
+		return nil, ErrInvalidField("op", err)
+	}
+
+	y, err := b.buildExpr(yVal)
+	if err != nil {
+		return nil, ErrInvalidField("y", err)
+	}
+
+	return &ast.BinaryExpr{
+		X:     x,
+		OpPos: b.parsePos(opposVal),
+		Op:    op,
+		Y:     y,
+	}, nil
+}
+
+// buildParenExpr parses a ParenExpr node
+func (b *Builder) buildParenExpr(s sexp.SExp) (*ast.ParenExpr, error) {
+	list, ok := b.expectList(s, "ParenExpr")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "ParenExpr") {
+		return nil, ErrExpectedNodeType("ParenExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	lparenVal, ok := b.requireKeyword(args, "lparen", "ParenExpr")
+	if !ok {
+		return nil, ErrMissingField("lparen")
+	}
+
+	xVal, ok := b.requireKeyword(args, "x", "ParenExpr")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	rparenVal, ok := b.requireKeyword(args, "rparen", "ParenExpr")
+	if !ok {
+		return nil, ErrMissingField("rparen")
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	return &ast.ParenExpr{
+		Lparen: b.parsePos(lparenVal),
+		X:      x,
+		Rparen: b.parsePos(rparenVal),
+	}, nil
+}
+
+// buildStarExpr parses a StarExpr node
+func (b *Builder) buildStarExpr(s sexp.SExp) (*ast.StarExpr, error) {
+	list, ok := b.expectList(s, "StarExpr")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "StarExpr") {
+		return nil, ErrExpectedNodeType("StarExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	starVal, ok := b.requireKeyword(args, "star", "StarExpr")
+	if !ok {
+		return nil, ErrMissingField("star")
+	}
+
+	xVal, ok := b.requireKeyword(args, "x", "StarExpr")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	return &ast.StarExpr{
+		Star: b.parsePos(starVal),
+		X:    x,
+	}, nil
+}
+
+// buildIndexExpr parses an IndexExpr node
+func (b *Builder) buildIndexExpr(s sexp.SExp) (*ast.IndexExpr, error) {
+	list, ok := b.expectList(s, "IndexExpr")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "IndexExpr") {
+		return nil, ErrExpectedNodeType("IndexExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	xVal, ok := b.requireKeyword(args, "x", "IndexExpr")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	lbrackVal, ok := b.requireKeyword(args, "lbrack", "IndexExpr")
+	if !ok {
+		return nil, ErrMissingField("lbrack")
+	}
+
+	indexVal, ok := b.requireKeyword(args, "index", "IndexExpr")
+	if !ok {
+		return nil, ErrMissingField("index")
+	}
+
+	rbrackVal, ok := b.requireKeyword(args, "rbrack", "IndexExpr")
+	if !ok {
+		return nil, ErrMissingField("rbrack")
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	index, err := b.buildExpr(indexVal)
+	if err != nil {
+		return nil, ErrInvalidField("index", err)
+	}
+
+	return &ast.IndexExpr{
+		X:      x,
+		Lbrack: b.parsePos(lbrackVal),
+		Index:  index,
+		Rbrack: b.parsePos(rbrackVal),
+	}, nil
+}
+
+// buildOptionalExpr builds an Expr or returns nil
+func (b *Builder) buildOptionalExpr(s sexp.SExp) (ast.Expr, error) {
+	if b.parseNil(s) {
+		return nil, nil
+	}
+	return b.buildExpr(s)
+}
+
+// buildSliceExpr parses a SliceExpr node
+func (b *Builder) buildSliceExpr(s sexp.SExp) (*ast.SliceExpr, error) {
+	list, ok := b.expectList(s, "SliceExpr")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "SliceExpr") {
+		return nil, ErrExpectedNodeType("SliceExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	xVal, ok := b.requireKeyword(args, "x", "SliceExpr")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	lbrackVal, ok := b.requireKeyword(args, "lbrack", "SliceExpr")
+	if !ok {
+		return nil, ErrMissingField("lbrack")
+	}
+
+	lowVal, ok := b.requireKeyword(args, "low", "SliceExpr")
+	if !ok {
+		return nil, ErrMissingField("low")
+	}
+
+	highVal, ok := b.requireKeyword(args, "high", "SliceExpr")
+	if !ok {
+		return nil, ErrMissingField("high")
+	}
+
+	maxVal, ok := b.requireKeyword(args, "max", "SliceExpr")
+	if !ok {
+		return nil, ErrMissingField("max")
+	}
+
+	slice3Val, ok := b.requireKeyword(args, "slice3", "SliceExpr")
+	if !ok {
+		return nil, ErrMissingField("slice3")
+	}
+
+	rbrackVal, ok := b.requireKeyword(args, "rbrack", "SliceExpr")
+	if !ok {
+		return nil, ErrMissingField("rbrack")
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	low, err := b.buildOptionalExpr(lowVal)
+	if err != nil {
+		return nil, ErrInvalidField("low", err)
+	}
+
+	high, err := b.buildOptionalExpr(highVal)
+	if err != nil {
+		return nil, ErrInvalidField("high", err)
+	}
+
+	max, err := b.buildOptionalExpr(maxVal)
+	if err != nil {
+		return nil, ErrInvalidField("max", err)
+	}
+
+	slice3, err := b.parseBool(slice3Val)
+	if err != nil {
+		return nil, ErrInvalidField("slice3", err)
+	}
+
+	return &ast.SliceExpr{
+		X:      x,
+		Lbrack: b.parsePos(lbrackVal),
+		Low:    low,
+		High:   high,
+		Max:    max,
+		Slice3: slice3,
+		Rbrack: b.parsePos(rbrackVal),
+	}, nil
+}
+
+// buildKeyValueExpr parses a KeyValueExpr node
+func (b *Builder) buildKeyValueExpr(s sexp.SExp) (*ast.KeyValueExpr, error) {
+	list, ok := b.expectList(s, "KeyValueExpr")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "KeyValueExpr") {
+		return nil, ErrExpectedNodeType("KeyValueExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	keyVal, ok := b.requireKeyword(args, "key", "KeyValueExpr")
+	if !ok {
+		return nil, ErrMissingField("key")
+	}
+
+	colonVal, ok := b.requireKeyword(args, "colon", "KeyValueExpr")
+	if !ok {
+		return nil, ErrMissingField("colon")
+	}
+
+	valueVal, ok := b.requireKeyword(args, "value", "KeyValueExpr")
+	if !ok {
+		return nil, ErrMissingField("value")
+	}
+
+	key, err := b.buildExpr(keyVal)
+	if err != nil {
+		return nil, ErrInvalidField("key", err)
+	}
+
+	value, err := b.buildExpr(valueVal)
+	if err != nil {
+		return nil, ErrInvalidField("value", err)
+	}
+
+	return &ast.KeyValueExpr{
+		Key:   key,
+		Colon: b.parsePos(colonVal),
+		Value: value,
+	}, nil
+}
+
+// buildUnaryExpr parses a UnaryExpr node
+func (b *Builder) buildUnaryExpr(s sexp.SExp) (*ast.UnaryExpr, error) {
+	list, ok := b.expectList(s, "UnaryExpr")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "UnaryExpr") {
+		return nil, ErrExpectedNodeType("UnaryExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	opposVal, ok := b.requireKeyword(args, "oppos", "UnaryExpr")
+	if !ok {
+		return nil, ErrMissingField("oppos")
+	}
+
+	opVal, ok := b.requireKeyword(args, "op", "UnaryExpr")
+	if !ok {
+		return nil, ErrMissingField("op")
+	}
+
+	xVal, ok := b.requireKeyword(args, "x", "UnaryExpr")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	op, err := b.parseToken(opVal)
+	if err != nil {
+		return nil, ErrInvalidField("op", err)
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	return &ast.UnaryExpr{
+		OpPos: b.parsePos(opposVal),
+		Op:    op,
+		X:     x,
+	}, nil
+}
+
 // buildExpr dispatches to appropriate expression builder
 func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 	if err := b.enterDepth(); err != nil {
@@ -450,6 +939,26 @@ func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 		return b.buildCallExpr(s)
 	case "SelectorExpr":
 		return b.buildSelectorExpr(s)
+	case "UnaryExpr":
+		return b.buildUnaryExpr(s)
+	case "BinaryExpr":
+		return b.buildBinaryExpr(s)
+	case "ParenExpr":
+		return b.buildParenExpr(s)
+	case "StarExpr":
+		return b.buildStarExpr(s)
+	case "IndexExpr":
+		return b.buildIndexExpr(s)
+	case "SliceExpr":
+		return b.buildSliceExpr(s)
+	case "KeyValueExpr":
+		return b.buildKeyValueExpr(s)
+	case "ArrayType":
+		return b.buildArrayType(s)
+	case "MapType":
+		return b.buildMapType(s)
+	case "ChanType":
+		return b.buildChanType(s)
 	default:
 		return nil, ErrUnknownNodeType(sym.Value, "expression")
 	}
@@ -537,6 +1046,402 @@ func (b *Builder) buildOptionalBlockStmt(s sexp.SExp) (*ast.BlockStmt, error) {
 	return b.buildBlockStmt(s)
 }
 
+// buildReturnStmt parses a ReturnStmt node
+func (b *Builder) buildReturnStmt(s sexp.SExp) (*ast.ReturnStmt, error) {
+	list, ok := b.expectList(s, "ReturnStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "ReturnStmt") {
+		return nil, ErrExpectedNodeType("ReturnStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	returnVal, ok := b.requireKeyword(args, "return", "ReturnStmt")
+	if !ok {
+		return nil, ErrMissingField("return")
+	}
+
+	resultsVal, ok := b.requireKeyword(args, "results", "ReturnStmt")
+	if !ok {
+		return nil, ErrMissingField("results")
+	}
+
+	// Build results list
+	var results []ast.Expr
+	resultsList, ok := b.expectList(resultsVal, "ReturnStmt results")
+	if ok {
+		for _, resultSexp := range resultsList.Elements {
+			result, err := b.buildExpr(resultSexp)
+			if err != nil {
+				return nil, ErrInvalidField("result", err)
+			}
+			results = append(results, result)
+		}
+	}
+
+	return &ast.ReturnStmt{
+		Return:  b.parsePos(returnVal),
+		Results: results,
+	}, nil
+}
+
+// buildAssignStmt parses an AssignStmt node
+func (b *Builder) buildAssignStmt(s sexp.SExp) (*ast.AssignStmt, error) {
+	list, ok := b.expectList(s, "AssignStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "AssignStmt") {
+		return nil, ErrExpectedNodeType("AssignStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	lhsVal, ok := b.requireKeyword(args, "lhs", "AssignStmt")
+	if !ok {
+		return nil, ErrMissingField("lhs")
+	}
+
+	tokposVal, ok := b.requireKeyword(args, "tokpos", "AssignStmt")
+	if !ok {
+		return nil, ErrMissingField("tokpos")
+	}
+
+	tokVal, ok := b.requireKeyword(args, "tok", "AssignStmt")
+	if !ok {
+		return nil, ErrMissingField("tok")
+	}
+
+	rhsVal, ok := b.requireKeyword(args, "rhs", "AssignStmt")
+	if !ok {
+		return nil, ErrMissingField("rhs")
+	}
+
+	// Build lhs list
+	var lhs []ast.Expr
+	lhsList, ok := b.expectList(lhsVal, "AssignStmt lhs")
+	if ok {
+		for _, lhsSexp := range lhsList.Elements {
+			lhsExpr, err := b.buildExpr(lhsSexp)
+			if err != nil {
+				return nil, ErrInvalidField("lhs", err)
+			}
+			lhs = append(lhs, lhsExpr)
+		}
+	}
+
+	tok, err := b.parseToken(tokVal)
+	if err != nil {
+		return nil, ErrInvalidField("tok", err)
+	}
+
+	// Build rhs list
+	var rhs []ast.Expr
+	rhsList, ok := b.expectList(rhsVal, "AssignStmt rhs")
+	if ok {
+		for _, rhsSexp := range rhsList.Elements {
+			rhsExpr, err := b.buildExpr(rhsSexp)
+			if err != nil {
+				return nil, ErrInvalidField("rhs", err)
+			}
+			rhs = append(rhs, rhsExpr)
+		}
+	}
+
+	return &ast.AssignStmt{
+		Lhs:    lhs,
+		TokPos: b.parsePos(tokposVal),
+		Tok:    tok,
+		Rhs:    rhs,
+	}, nil
+}
+
+// buildIncDecStmt parses an IncDecStmt node
+func (b *Builder) buildIncDecStmt(s sexp.SExp) (*ast.IncDecStmt, error) {
+	list, ok := b.expectList(s, "IncDecStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "IncDecStmt") {
+		return nil, ErrExpectedNodeType("IncDecStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	xVal, ok := b.requireKeyword(args, "x", "IncDecStmt")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	tokposVal, ok := b.requireKeyword(args, "tokpos", "IncDecStmt")
+	if !ok {
+		return nil, ErrMissingField("tokpos")
+	}
+
+	tokVal, ok := b.requireKeyword(args, "tok", "IncDecStmt")
+	if !ok {
+		return nil, ErrMissingField("tok")
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	tok, err := b.parseToken(tokVal)
+	if err != nil {
+		return nil, ErrInvalidField("tok", err)
+	}
+
+	return &ast.IncDecStmt{
+		X:      x,
+		TokPos: b.parsePos(tokposVal),
+		Tok:    tok,
+	}, nil
+}
+
+// buildBranchStmt parses a BranchStmt node
+func (b *Builder) buildBranchStmt(s sexp.SExp) (*ast.BranchStmt, error) {
+	list, ok := b.expectList(s, "BranchStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "BranchStmt") {
+		return nil, ErrExpectedNodeType("BranchStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	tokposVal, ok := b.requireKeyword(args, "tokpos", "BranchStmt")
+	if !ok {
+		return nil, ErrMissingField("tokpos")
+	}
+
+	tokVal, ok := b.requireKeyword(args, "tok", "BranchStmt")
+	if !ok {
+		return nil, ErrMissingField("tok")
+	}
+
+	labelVal, ok := b.requireKeyword(args, "label", "BranchStmt")
+	if !ok {
+		return nil, ErrMissingField("label")
+	}
+
+	tok, err := b.parseToken(tokVal)
+	if err != nil {
+		return nil, ErrInvalidField("tok", err)
+	}
+
+	label, err := b.buildOptionalIdent(labelVal)
+	if err != nil {
+		return nil, ErrInvalidField("label", err)
+	}
+
+	return &ast.BranchStmt{
+		TokPos: b.parsePos(tokposVal),
+		Tok:    tok,
+		Label:  label,
+	}, nil
+}
+
+// buildDeferStmt parses a DeferStmt node
+func (b *Builder) buildDeferStmt(s sexp.SExp) (*ast.DeferStmt, error) {
+	list, ok := b.expectList(s, "DeferStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "DeferStmt") {
+		return nil, ErrExpectedNodeType("DeferStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	deferVal, ok := b.requireKeyword(args, "defer", "DeferStmt")
+	if !ok {
+		return nil, ErrMissingField("defer")
+	}
+
+	callVal, ok := b.requireKeyword(args, "call", "DeferStmt")
+	if !ok {
+		return nil, ErrMissingField("call")
+	}
+
+	call, err := b.buildCallExpr(callVal)
+	if err != nil {
+		return nil, ErrInvalidField("call", err)
+	}
+
+	return &ast.DeferStmt{
+		Defer: b.parsePos(deferVal),
+		Call:  call,
+	}, nil
+}
+
+// buildGoStmt parses a GoStmt node
+func (b *Builder) buildGoStmt(s sexp.SExp) (*ast.GoStmt, error) {
+	list, ok := b.expectList(s, "GoStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "GoStmt") {
+		return nil, ErrExpectedNodeType("GoStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	goVal, ok := b.requireKeyword(args, "go", "GoStmt")
+	if !ok {
+		return nil, ErrMissingField("go")
+	}
+
+	callVal, ok := b.requireKeyword(args, "call", "GoStmt")
+	if !ok {
+		return nil, ErrMissingField("call")
+	}
+
+	call, err := b.buildCallExpr(callVal)
+	if err != nil {
+		return nil, ErrInvalidField("call", err)
+	}
+
+	return &ast.GoStmt{
+		Go:   b.parsePos(goVal),
+		Call: call,
+	}, nil
+}
+
+// buildSendStmt parses a SendStmt node
+func (b *Builder) buildSendStmt(s sexp.SExp) (*ast.SendStmt, error) {
+	list, ok := b.expectList(s, "SendStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "SendStmt") {
+		return nil, ErrExpectedNodeType("SendStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	chanVal, ok := b.requireKeyword(args, "chan", "SendStmt")
+	if !ok {
+		return nil, ErrMissingField("chan")
+	}
+
+	arrowVal, ok := b.requireKeyword(args, "arrow", "SendStmt")
+	if !ok {
+		return nil, ErrMissingField("arrow")
+	}
+
+	valueVal, ok := b.requireKeyword(args, "value", "SendStmt")
+	if !ok {
+		return nil, ErrMissingField("value")
+	}
+
+	chanExpr, err := b.buildExpr(chanVal)
+	if err != nil {
+		return nil, ErrInvalidField("chan", err)
+	}
+
+	value, err := b.buildExpr(valueVal)
+	if err != nil {
+		return nil, ErrInvalidField("value", err)
+	}
+
+	return &ast.SendStmt{
+		Chan:  chanExpr,
+		Arrow: b.parsePos(arrowVal),
+		Value: value,
+	}, nil
+}
+
+// buildEmptyStmt parses an EmptyStmt node
+func (b *Builder) buildEmptyStmt(s sexp.SExp) (*ast.EmptyStmt, error) {
+	list, ok := b.expectList(s, "EmptyStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "EmptyStmt") {
+		return nil, ErrExpectedNodeType("EmptyStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	semicolonVal, ok := b.requireKeyword(args, "semicolon", "EmptyStmt")
+	if !ok {
+		return nil, ErrMissingField("semicolon")
+	}
+
+	implicitVal, ok := b.requireKeyword(args, "implicit", "EmptyStmt")
+	if !ok {
+		return nil, ErrMissingField("implicit")
+	}
+
+	implicit, err := b.parseBool(implicitVal)
+	if err != nil {
+		return nil, ErrInvalidField("implicit", err)
+	}
+
+	return &ast.EmptyStmt{
+		Semicolon: b.parsePos(semicolonVal),
+		Implicit:  implicit,
+	}, nil
+}
+
+// buildLabeledStmt parses a LabeledStmt node
+func (b *Builder) buildLabeledStmt(s sexp.SExp) (*ast.LabeledStmt, error) {
+	list, ok := b.expectList(s, "LabeledStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "LabeledStmt") {
+		return nil, ErrExpectedNodeType("LabeledStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	labelVal, ok := b.requireKeyword(args, "label", "LabeledStmt")
+	if !ok {
+		return nil, ErrMissingField("label")
+	}
+
+	colonVal, ok := b.requireKeyword(args, "colon", "LabeledStmt")
+	if !ok {
+		return nil, ErrMissingField("colon")
+	}
+
+	stmtVal, ok := b.requireKeyword(args, "stmt", "LabeledStmt")
+	if !ok {
+		return nil, ErrMissingField("stmt")
+	}
+
+	label, err := b.buildIdent(labelVal)
+	if err != nil {
+		return nil, ErrInvalidField("label", err)
+	}
+
+	stmt, err := b.buildStmt(stmtVal)
+	if err != nil {
+		return nil, ErrInvalidField("stmt", err)
+	}
+
+	return &ast.LabeledStmt{
+		Label: label,
+		Colon: b.parsePos(colonVal),
+		Stmt:  stmt,
+	}, nil
+}
+
 // buildStmt dispatches to appropriate statement builder
 func (b *Builder) buildStmt(s sexp.SExp) (ast.Stmt, error) {
 	list, ok := b.expectList(s, "statement")
@@ -558,6 +1463,24 @@ func (b *Builder) buildStmt(s sexp.SExp) (ast.Stmt, error) {
 		return b.buildExprStmt(s)
 	case "BlockStmt":
 		return b.buildBlockStmt(s)
+	case "ReturnStmt":
+		return b.buildReturnStmt(s)
+	case "AssignStmt":
+		return b.buildAssignStmt(s)
+	case "IncDecStmt":
+		return b.buildIncDecStmt(s)
+	case "BranchStmt":
+		return b.buildBranchStmt(s)
+	case "DeferStmt":
+		return b.buildDeferStmt(s)
+	case "GoStmt":
+		return b.buildGoStmt(s)
+	case "SendStmt":
+		return b.buildSendStmt(s)
+	case "EmptyStmt":
+		return b.buildEmptyStmt(s)
+	case "LabeledStmt":
+		return b.buildLabeledStmt(s)
 	default:
 		return nil, ErrUnknownNodeType(sym.Value, "statement")
 	}
@@ -705,6 +1628,147 @@ func (b *Builder) buildFuncType(s sexp.SExp) (*ast.FuncType, error) {
 	}, nil
 }
 
+// buildArrayType parses an ArrayType node
+func (b *Builder) buildArrayType(s sexp.SExp) (*ast.ArrayType, error) {
+	list, ok := b.expectList(s, "ArrayType")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "ArrayType") {
+		return nil, ErrExpectedNodeType("ArrayType", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	lbrackVal, ok := b.requireKeyword(args, "lbrack", "ArrayType")
+	if !ok {
+		return nil, ErrMissingField("lbrack")
+	}
+
+	lenVal, ok := b.requireKeyword(args, "len", "ArrayType")
+	if !ok {
+		return nil, ErrMissingField("len")
+	}
+
+	eltVal, ok := b.requireKeyword(args, "elt", "ArrayType")
+	if !ok {
+		return nil, ErrMissingField("elt")
+	}
+
+	len, err := b.buildOptionalExpr(lenVal)
+	if err != nil {
+		return nil, ErrInvalidField("len", err)
+	}
+
+	elt, err := b.buildExpr(eltVal)
+	if err != nil {
+		return nil, ErrInvalidField("elt", err)
+	}
+
+	return &ast.ArrayType{
+		Lbrack: b.parsePos(lbrackVal),
+		Len:    len,
+		Elt:    elt,
+	}, nil
+}
+
+// buildMapType parses a MapType node
+func (b *Builder) buildMapType(s sexp.SExp) (*ast.MapType, error) {
+	list, ok := b.expectList(s, "MapType")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "MapType") {
+		return nil, ErrExpectedNodeType("MapType", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	mapVal, ok := b.requireKeyword(args, "map", "MapType")
+	if !ok {
+		return nil, ErrMissingField("map")
+	}
+
+	keyVal, ok := b.requireKeyword(args, "key", "MapType")
+	if !ok {
+		return nil, ErrMissingField("key")
+	}
+
+	valueVal, ok := b.requireKeyword(args, "value", "MapType")
+	if !ok {
+		return nil, ErrMissingField("value")
+	}
+
+	key, err := b.buildExpr(keyVal)
+	if err != nil {
+		return nil, ErrInvalidField("key", err)
+	}
+
+	value, err := b.buildExpr(valueVal)
+	if err != nil {
+		return nil, ErrInvalidField("value", err)
+	}
+
+	return &ast.MapType{
+		Map:   b.parsePos(mapVal),
+		Key:   key,
+		Value: value,
+	}, nil
+}
+
+// buildChanType parses a ChanType node
+func (b *Builder) buildChanType(s sexp.SExp) (*ast.ChanType, error) {
+	list, ok := b.expectList(s, "ChanType")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "ChanType") {
+		return nil, ErrExpectedNodeType("ChanType", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	beginVal, ok := b.requireKeyword(args, "begin", "ChanType")
+	if !ok {
+		return nil, ErrMissingField("begin")
+	}
+
+	arrowVal, ok := b.requireKeyword(args, "arrow", "ChanType")
+	if !ok {
+		return nil, ErrMissingField("arrow")
+	}
+
+	dirVal, ok := b.requireKeyword(args, "dir", "ChanType")
+	if !ok {
+		return nil, ErrMissingField("dir")
+	}
+
+	valueVal, ok := b.requireKeyword(args, "value", "ChanType")
+	if !ok {
+		return nil, ErrMissingField("value")
+	}
+
+	dir, err := b.parseChanDir(dirVal)
+	if err != nil {
+		return nil, ErrInvalidField("dir", err)
+	}
+
+	value, err := b.buildExpr(valueVal)
+	if err != nil {
+		return nil, ErrInvalidField("value", err)
+	}
+
+	return &ast.ChanType{
+		Begin: b.parsePos(beginVal),
+		Arrow: b.parsePos(arrowVal),
+		Dir:   dir,
+		Value: value,
+	}, nil
+}
+
 // buildImportSpec parses an ImportSpec node
 func (b *Builder) buildImportSpec(s sexp.SExp) (*ast.ImportSpec, error) {
 	list, ok := b.expectList(s, "ImportSpec")
@@ -750,6 +1814,130 @@ func (b *Builder) buildImportSpec(s sexp.SExp) (*ast.ImportSpec, error) {
 	}, nil
 }
 
+// buildValueSpec parses a ValueSpec node
+func (b *Builder) buildValueSpec(s sexp.SExp) (*ast.ValueSpec, error) {
+	list, ok := b.expectList(s, "ValueSpec")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "ValueSpec") {
+		return nil, ErrExpectedNodeType("ValueSpec", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	namesVal, ok := b.requireKeyword(args, "names", "ValueSpec")
+	if !ok {
+		return nil, ErrMissingField("names")
+	}
+
+	typeVal, ok := b.requireKeyword(args, "type", "ValueSpec")
+	if !ok {
+		return nil, ErrMissingField("type")
+	}
+
+	valuesVal, ok := b.requireKeyword(args, "values", "ValueSpec")
+	if !ok {
+		return nil, ErrMissingField("values")
+	}
+
+	// Build names list
+	var names []*ast.Ident
+	namesList, ok := b.expectList(namesVal, "ValueSpec names")
+	if ok {
+		for _, nameSexp := range namesList.Elements {
+			name, err := b.buildIdent(nameSexp)
+			if err != nil {
+				return nil, ErrInvalidField("name", err)
+			}
+			names = append(names, name)
+		}
+	}
+
+	// Type is optional
+	typ, err := b.buildOptionalExpr(typeVal)
+	if err != nil {
+		return nil, ErrInvalidField("type", err)
+	}
+
+	// Build values list
+	var values []ast.Expr
+	valuesList, ok := b.expectList(valuesVal, "ValueSpec values")
+	if ok {
+		for _, valueSexp := range valuesList.Elements {
+			value, err := b.buildExpr(valueSexp)
+			if err != nil {
+				return nil, ErrInvalidField("value", err)
+			}
+			values = append(values, value)
+		}
+	}
+
+	return &ast.ValueSpec{
+		Names:  names,
+		Type:   typ,
+		Values: values,
+	}, nil
+}
+
+// buildTypeSpec parses a TypeSpec node
+func (b *Builder) buildTypeSpec(s sexp.SExp) (*ast.TypeSpec, error) {
+	list, ok := b.expectList(s, "TypeSpec")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "TypeSpec") {
+		return nil, ErrExpectedNodeType("TypeSpec", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	nameVal, ok := b.requireKeyword(args, "name", "TypeSpec")
+	if !ok {
+		return nil, ErrMissingField("name")
+	}
+
+	typeparamsVal, ok := b.requireKeyword(args, "typeparams", "TypeSpec")
+	if !ok {
+		return nil, ErrMissingField("typeparams")
+	}
+
+	assignVal, ok := b.requireKeyword(args, "assign", "TypeSpec")
+	if !ok {
+		return nil, ErrMissingField("assign")
+	}
+
+	typeVal, ok := b.requireKeyword(args, "type", "TypeSpec")
+	if !ok {
+		return nil, ErrMissingField("type")
+	}
+
+	name, err := b.buildIdent(nameVal)
+	if err != nil {
+		return nil, ErrInvalidField("name", err)
+	}
+
+	// Type params is optional (for generics)
+	typeparams, err := b.buildOptionalFieldList(typeparamsVal)
+	if err != nil {
+		return nil, ErrInvalidField("typeparams", err)
+	}
+
+	typ, err := b.buildExpr(typeVal)
+	if err != nil {
+		return nil, ErrInvalidField("type", err)
+	}
+
+	return &ast.TypeSpec{
+		Name:       name,
+		TypeParams: typeparams,
+		Assign:     b.parsePos(assignVal),
+		Type:       typ,
+	}, nil
+}
+
 // buildSpec dispatches to appropriate spec builder
 func (b *Builder) buildSpec(s sexp.SExp) (ast.Spec, error) {
 	list, ok := b.expectList(s, "spec")
@@ -769,6 +1957,10 @@ func (b *Builder) buildSpec(s sexp.SExp) (ast.Spec, error) {
 	switch sym.Value {
 	case "ImportSpec":
 		return b.buildImportSpec(s)
+	case "ValueSpec":
+		return b.buildValueSpec(s)
+	case "TypeSpec":
+		return b.buildTypeSpec(s)
 	default:
 		return nil, ErrUnknownNodeType(sym.Value, "spec")
 	}
