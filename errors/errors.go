@@ -1,4 +1,4 @@
-package zast
+package errors
 
 import (
 	"errors"
