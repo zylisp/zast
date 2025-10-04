@@ -424,12 +424,10 @@ func TestWriteExprUnknownType(t *testing.T) {
 func TestWriteStmtUnknownType(t *testing.T) {
 	writer := NewWriter(nil)
 
-	// Create an unsupported statement type (e.g., ForStmt - not yet implemented)
-	forStmt := &ast.ForStmt{
-		Body: &ast.BlockStmt{},
-	}
+	// Create an unsupported statement type (BadStmt is not implemented)
+	badStmt := &ast.BadStmt{}
 
-	err := writer.writeStmt(forStmt)
+	err := writer.writeStmt(badStmt)
 	if err == nil {
 		t.Fatalf("expected error for unknown statement type")
 	}
