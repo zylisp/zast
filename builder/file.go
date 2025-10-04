@@ -176,12 +176,78 @@ func (b *Builder) BuildFile(s sexp.SExp) (*ast.File, error) {
 		}
 	}
 
-	// Optional imports, unresolved, comments - ignore for now
+	// Optional doc
+	var doc *ast.CommentGroup
+	if docVal, ok := args["doc"]; ok {
+		doc, err = b.buildCommentGroup(docVal)
+		if err != nil {
+			return nil, errors.ErrInvalidField("doc", err)
+		}
+	}
+
+	// Optional scope
+	var scope *ast.Scope
+	if scopeVal, ok := args["scope"]; ok {
+		scope, err = b.buildScope(scopeVal)
+		if err != nil {
+			return nil, errors.ErrInvalidField("scope", err)
+		}
+	}
+
+	// Optional imports
+	var imports []*ast.ImportSpec
+	if importsVal, ok := args["imports"]; ok {
+		importsList, ok := b.expectList(importsVal, "File imports")
+		if ok {
+			for _, importSexp := range importsList.Elements {
+				importSpec, err := b.buildImportSpec(importSexp)
+				if err != nil {
+					return nil, errors.ErrInvalidField("import", err)
+				}
+				imports = append(imports, importSpec)
+			}
+		}
+	}
+
+	// Optional unresolved
+	var unresolved []*ast.Ident
+	if unresolvedVal, ok := args["unresolved"]; ok {
+		unresolvedList, ok := b.expectList(unresolvedVal, "File unresolved")
+		if ok {
+			for _, identSexp := range unresolvedList.Elements {
+				ident, err := b.buildIdent(identSexp)
+				if err != nil {
+					return nil, errors.ErrInvalidField("unresolved ident", err)
+				}
+				unresolved = append(unresolved, ident)
+			}
+		}
+	}
+
+	// Optional comments
+	var comments []*ast.CommentGroup
+	if commentsVal, ok := args["comments"]; ok {
+		commentsList, ok := b.expectList(commentsVal, "File comments")
+		if ok {
+			for _, cgSexp := range commentsList.Elements {
+				cg, err := b.buildCommentGroup(cgSexp)
+				if err != nil {
+					return nil, errors.ErrInvalidField("comment group", err)
+				}
+				comments = append(comments, cg)
+			}
+		}
+	}
 
 	file := &ast.File{
-		Package: b.parsePos(packageVal),
-		Name:    name,
-		Decls:   decls,
+		Doc:        doc,
+		Package:    b.parsePos(packageVal),
+		Name:       name,
+		Decls:      decls,
+		Scope:      scope,
+		Imports:    imports,
+		Unresolved: unresolved,
+		Comments:   comments,
 	}
 
 	return file, nil

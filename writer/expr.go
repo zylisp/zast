@@ -27,7 +27,9 @@ func (w *Writer) writeIdent(ident *ast.Ident) error {
 	w.writeSpace()
 	w.writeKeyword("obj")
 	w.writeSpace()
-	w.writeSymbol("nil") // Objects handled separately if needed
+	if err := w.writeObject(ident.Obj); err != nil {
+		return err
+	}
 	w.closeList()
 	return nil
 }
@@ -194,6 +196,48 @@ func (w *Writer) writeIndexExpr(expr *ast.IndexExpr) error {
 	w.writeKeyword("rbrack")
 	w.writeSpace()
 	w.writePos(expr.Rbrack)
+	w.closeList()
+	return nil
+}
+
+func (w *Writer) writeIndexListExpr(expr *ast.IndexListExpr) error {
+	w.openList()
+	w.writeSymbol("IndexListExpr")
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(expr.X); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("lbrack")
+	w.writeSpace()
+	w.writePos(expr.Lbrack)
+	w.writeSpace()
+	w.writeKeyword("indices")
+	w.writeSpace()
+	if err := w.writeExprList(expr.Indices); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("rbrack")
+	w.writeSpace()
+	w.writePos(expr.Rbrack)
+	w.closeList()
+	return nil
+}
+
+func (w *Writer) writeBadExpr(expr *ast.BadExpr) error {
+	w.openList()
+	w.writeSymbol("BadExpr")
+	w.writeSpace()
+	w.writeKeyword("from")
+	w.writeSpace()
+	w.writePos(expr.From)
+	w.writeSpace()
+	w.writeKeyword("to")
+	w.writeSpace()
+	w.writePos(expr.To)
 	w.closeList()
 	return nil
 }
@@ -431,6 +475,10 @@ func (w *Writer) writeExpr(expr ast.Expr) error {
 		return w.writeFuncLit(e)
 	case *ast.Ellipsis:
 		return w.writeEllipsis(e)
+	case *ast.IndexListExpr:
+		return w.writeIndexListExpr(e)
+	case *ast.BadExpr:
+		return w.writeBadExpr(e)
 	default:
 		return errors.ErrUnknownExprType(expr)
 	}
