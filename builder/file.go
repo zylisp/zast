@@ -1,0 +1,244 @@
+package builder
+
+import (
+	"fmt"
+	"go/ast"
+	"go/token"
+	"strings"
+
+	"zylisp/zast/errors"
+	"zylisp/zast/sexp"
+)
+
+// buildFileInfo parses a FileInfo node
+func (b *Builder) buildFileInfo(s sexp.SExp) (*FileInfo, error) {
+	list, ok := b.expectList(s, "FileInfo")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "FileInfo") {
+		return nil, errors.ErrExpectedNodeType("FileInfo", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	nameVal, ok := b.requireKeyword(args, "name", "FileInfo")
+	if !ok {
+		return nil, errors.ErrMissingField("name")
+	}
+
+	baseVal, ok := b.requireKeyword(args, "base", "FileInfo")
+	if !ok {
+		return nil, errors.ErrMissingField("base")
+	}
+
+	sizeVal, ok := b.requireKeyword(args, "size", "FileInfo")
+	if !ok {
+		return nil, errors.ErrMissingField("size")
+	}
+
+	linesVal, ok := b.requireKeyword(args, "lines", "FileInfo")
+	if !ok {
+		return nil, errors.ErrMissingField("lines")
+	}
+
+	name, err := b.parseString(nameVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("name", err)
+	}
+
+	base, err := b.parseInt(baseVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("base", err)
+	}
+
+	size, err := b.parseInt(sizeVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("size", err)
+	}
+
+	// Parse lines list
+	linesList, ok := b.expectList(linesVal, "FileInfo lines")
+	if !ok {
+		return nil, errors.ErrInvalidField("lines", errors.ErrNotList)
+	}
+
+	var lines []int
+	for _, lineSexp := range linesList.Elements {
+		line, err := b.parseInt(lineSexp)
+		if err != nil {
+			return nil, fmt.Errorf("invalid line offset: %v", err)
+		}
+		lines = append(lines, line)
+	}
+
+	return &FileInfo{
+		Name:  name,
+		Base:  base,
+		Size:  size,
+		Lines: lines,
+	}, nil
+}
+
+// buildFileSet parses a FileSet node
+func (b *Builder) buildFileSet(s sexp.SExp) (*FileSetInfo, error) {
+	list, ok := b.expectList(s, "FileSet")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "FileSet") {
+		return nil, errors.ErrExpectedNodeType("FileSet", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	baseVal, ok := b.requireKeyword(args, "base", "FileSet")
+	if !ok {
+		return nil, errors.ErrMissingField("base")
+	}
+
+	filesVal, ok := b.requireKeyword(args, "files", "FileSet")
+	if !ok {
+		return nil, errors.ErrMissingField("files")
+	}
+
+	base, err := b.parseInt(baseVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("base", err)
+	}
+
+	// Parse files list
+	filesList, ok := b.expectList(filesVal, "FileSet files")
+	if !ok {
+		return nil, errors.ErrInvalidField("files", errors.ErrNotList)
+	}
+
+	var files []FileInfo
+	for _, fileSexp := range filesList.Elements {
+		fileInfo, err := b.buildFileInfo(fileSexp)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file info: %v", err)
+		}
+		files = append(files, *fileInfo)
+	}
+
+	return &FileSetInfo{
+		Base:  base,
+		Files: files,
+	}, nil
+}
+
+// BuildFile converts a File s-expression to *ast.File
+func (b *Builder) BuildFile(s sexp.SExp) (*ast.File, error) {
+	list, ok := b.expectList(s, "File")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "File") {
+		return nil, errors.ErrExpectedNodeType("File", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	packageVal, ok := b.requireKeyword(args, "package", "File")
+	if !ok {
+		return nil, errors.ErrMissingField("package")
+	}
+
+	nameVal, ok := b.requireKeyword(args, "name", "File")
+	if !ok {
+		return nil, errors.ErrMissingField("name")
+	}
+
+	declsVal, ok := b.requireKeyword(args, "decls", "File")
+	if !ok {
+		return nil, errors.ErrMissingField("decls")
+	}
+
+	name, err := b.buildIdent(nameVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("name", err)
+	}
+
+	// Build declarations list
+	var decls []ast.Decl
+	declsList, ok := b.expectList(declsVal, "File decls")
+	if ok {
+		for _, declSexp := range declsList.Elements {
+			decl, err := b.buildDecl(declSexp)
+			if err != nil {
+				return nil, errors.ErrInvalidField("declaration", err)
+			}
+			decls = append(decls, decl)
+		}
+	}
+
+	// Optional imports, unresolved, comments - ignore for now
+
+	file := &ast.File{
+		Package: b.parsePos(packageVal),
+		Name:    name,
+		Decls:   decls,
+	}
+
+	return file, nil
+}
+
+// BuildProgram parses a Program s-expression and returns FileSet and Files
+func (b *Builder) BuildProgram(s sexp.SExp) (*token.FileSet, []*ast.File, error) {
+	list, ok := b.expectList(s, "Program")
+	if !ok {
+		return nil, nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "Program") {
+		return nil, nil, errors.ErrExpectedNodeType("Program", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	filesetVal, ok := b.requireKeyword(args, "fileset", "Program")
+	if !ok {
+		return nil, nil, errors.ErrMissingField("fileset")
+	}
+
+	filesVal, ok := b.requireKeyword(args, "files", "Program")
+	if !ok {
+		return nil, nil, errors.ErrMissingField("files")
+	}
+
+	// Build FileSet
+	fileSetInfo, err := b.buildFileSet(filesetVal)
+	if err != nil {
+		return nil, nil, errors.ErrInvalidField("fileset", err)
+	}
+
+	// Create token.FileSet from FileSetInfo
+	fset := token.NewFileSet()
+	for _, fi := range fileSetInfo.Files {
+		fset.AddFile(fi.Name, fi.Base, fi.Size)
+	}
+	b.fset = fset
+
+	// Build files list
+	var files []*ast.File
+	filesList, ok := b.expectList(filesVal, "Program files")
+	if ok {
+		for _, fileSexp := range filesList.Elements {
+			file, err := b.BuildFile(fileSexp)
+			if err != nil {
+				return nil, nil, errors.ErrInvalidField("file", err)
+			}
+			files = append(files, file)
+		}
+	}
+
+	if len(b.errors) > 0 {
+		return nil, nil, fmt.Errorf("build errors: %s", strings.Join(b.errors, "; "))
+	}
+
+	return fset, files, nil
+}

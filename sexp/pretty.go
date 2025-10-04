@@ -98,9 +98,16 @@ var formStyles = map[string]FormStyle{
 	"TypeAssertExpr": StyleKeywordPairs,
 
 	// Type nodes
-	"ArrayType": StyleKeywordPairs,
-	"MapType":   StyleKeywordPairs,
-	"ChanType":  StyleKeywordPairs,
+	"ArrayType":      StyleKeywordPairs,
+	"MapType":        StyleKeywordPairs,
+	"ChanType":       StyleKeywordPairs,
+	"StructType":     StyleKeywordPairs,
+	"InterfaceType":  StyleKeywordPairs,
+
+	// Complex expressions (Phase 4)
+	"CompositeLit":   StyleKeywordPairs,
+	"FuncLit":        StyleKeywordPairs,
+	"Ellipsis":       StyleCompact,
 
 	// Specs
 	"ImportSpec": StyleKeywordPairs,

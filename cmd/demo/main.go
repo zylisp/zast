@@ -14,7 +14,9 @@ import (
 	"path/filepath"
 
 	"zylisp/zast"
+	"zylisp/zast/builder"
 	"zylisp/zast/sexp"
+	"zylisp/zast/writer"
 )
 
 const (
@@ -171,8 +173,8 @@ func parseGoSource(source string) (*token.FileSet, *ast.File) {
 
 // Step 2: AST to S-expression
 func astToSexp(fset *token.FileSet, file *ast.File) string {
-	writer := zast.NewWriter(fset)
-	sexpText, err := writer.WriteProgram([]*ast.File{file})
+	wrtr := writer.New(fset)
+	sexpText, err := wrtr.WriteProgram([]*ast.File{file})
 	if err != nil {
 		log.Fatalf("Failed to convert AST to S-expression: %v", err)
 	}
@@ -210,8 +212,8 @@ func parseSexp(sexpText string) sexp.SExp {
 
 // Step 6: S-expression to AST
 func sexpToAST(tree sexp.SExp) (*token.FileSet, *ast.File) {
-	builder := zast.NewBuilder()
-	fset, files, err := builder.BuildProgram(tree)
+	bldr := builder.New()
+	fset, files, err := bldr.BuildProgram(tree)
 	if err != nil {
 		log.Fatalf("Failed to convert S-expression to AST: %v", err)
 	}

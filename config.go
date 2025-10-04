@@ -4,7 +4,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"zylisp/zast/builder"
 	"zylisp/zast/sexp"
+	"zylisp/zast/writer"
 )
 
 // OutputConfig holds configuration for output directories and files
@@ -81,8 +83,8 @@ func (c *OutputConfig) GetASTBuildDir() (string, error) {
 // Config holds configuration for all AST conversion components
 type Config struct {
 	Printer *sexp.PrettyPrintConfig
-	Builder *BuilderConfig
-	Writer  *WriterConfig
+	Builder *builder.Config
+	Writer  *writer.Config
 	Output  *OutputConfig
 }
 
@@ -90,8 +92,8 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Printer: sexp.DefaultPrettyPrintConfig(),
-		Builder: DefaultBuilderConfig(),
-		Writer:  DefaultWriterConfig(),
+		Builder: builder.DefaultConfig(),
+		Writer:  writer.DefaultConfig(),
 		Output:  DefaultOutputConfig(),
 	}
 }
