@@ -508,6 +508,34 @@ func (w *Writer) writeUnaryExpr(expr *ast.UnaryExpr) error {
 	return nil
 }
 
+// writeTypeAssertExpr writes a TypeAssertExpr node
+func (w *Writer) writeTypeAssertExpr(expr *ast.TypeAssertExpr) error {
+	w.openList()
+	w.writeSymbol("TypeAssertExpr")
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(expr.X); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("lparen")
+	w.writeSpace()
+	w.writePos(expr.Lparen)
+	w.writeSpace()
+	w.writeKeyword("type")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Type); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("rparen")
+	w.writeSpace()
+	w.writePos(expr.Rparen)
+	w.closeList()
+	return nil
+}
+
 // Expression dispatcher
 func (w *Writer) writeExpr(expr ast.Expr) error {
 	if expr == nil {
@@ -544,6 +572,8 @@ func (w *Writer) writeExpr(expr ast.Expr) error {
 		return w.writeMapType(e)
 	case *ast.ChanType:
 		return w.writeChanType(e)
+	case *ast.TypeAssertExpr:
+		return w.writeTypeAssertExpr(e)
 	default:
 		return ErrUnknownExprType(expr)
 	}
@@ -778,6 +808,270 @@ func (w *Writer) writeLabeledStmt(stmt *ast.LabeledStmt) error {
 	return nil
 }
 
+// writeIfStmt writes an IfStmt node
+func (w *Writer) writeIfStmt(stmt *ast.IfStmt) error {
+	w.openList()
+	w.writeSymbol("IfStmt")
+	w.writeSpace()
+	w.writeKeyword("if")
+	w.writeSpace()
+	w.writePos(stmt.If)
+	w.writeSpace()
+	w.writeKeyword("init")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Init); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("cond")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.Cond); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeBlockStmt(stmt.Body); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("else")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Else); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeForStmt writes a ForStmt node
+func (w *Writer) writeForStmt(stmt *ast.ForStmt) error {
+	w.openList()
+	w.writeSymbol("ForStmt")
+	w.writeSpace()
+	w.writeKeyword("for")
+	w.writeSpace()
+	w.writePos(stmt.For)
+	w.writeSpace()
+	w.writeKeyword("init")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Init); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("cond")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.Cond); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("post")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Post); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeBlockStmt(stmt.Body); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeRangeStmt writes a RangeStmt node
+func (w *Writer) writeRangeStmt(stmt *ast.RangeStmt) error {
+	w.openList()
+	w.writeSymbol("RangeStmt")
+	w.writeSpace()
+	w.writeKeyword("for")
+	w.writeSpace()
+	w.writePos(stmt.For)
+	w.writeSpace()
+	w.writeKeyword("key")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.Key); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("value")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.Value); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("tokpos")
+	w.writeSpace()
+	w.writePos(stmt.TokPos)
+	w.writeSpace()
+	w.writeKeyword("tok")
+	w.writeSpace()
+	w.writeToken(stmt.Tok)
+	w.writeSpace()
+	w.writeKeyword("x")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.X); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeBlockStmt(stmt.Body); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeSwitchStmt writes a SwitchStmt node
+func (w *Writer) writeSwitchStmt(stmt *ast.SwitchStmt) error {
+	w.openList()
+	w.writeSymbol("SwitchStmt")
+	w.writeSpace()
+	w.writeKeyword("switch")
+	w.writeSpace()
+	w.writePos(stmt.Switch)
+	w.writeSpace()
+	w.writeKeyword("init")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Init); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("tag")
+	w.writeSpace()
+	if err := w.writeExpr(stmt.Tag); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeBlockStmt(stmt.Body); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeCaseClause writes a CaseClause node
+func (w *Writer) writeCaseClause(stmt *ast.CaseClause) error {
+	w.openList()
+	w.writeSymbol("CaseClause")
+	w.writeSpace()
+	w.writeKeyword("case")
+	w.writeSpace()
+	w.writePos(stmt.Case)
+	w.writeSpace()
+	w.writeKeyword("list")
+	w.writeSpace()
+	if err := w.writeExprList(stmt.List); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("colon")
+	w.writeSpace()
+	w.writePos(stmt.Colon)
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeStmtList(stmt.Body); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeTypeSwitchStmt writes a TypeSwitchStmt node
+func (w *Writer) writeTypeSwitchStmt(stmt *ast.TypeSwitchStmt) error {
+	w.openList()
+	w.writeSymbol("TypeSwitchStmt")
+	w.writeSpace()
+	w.writeKeyword("switch")
+	w.writeSpace()
+	w.writePos(stmt.Switch)
+	w.writeSpace()
+	w.writeKeyword("init")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Init); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("assign")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Assign); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeBlockStmt(stmt.Body); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeSelectStmt writes a SelectStmt node
+func (w *Writer) writeSelectStmt(stmt *ast.SelectStmt) error {
+	w.openList()
+	w.writeSymbol("SelectStmt")
+	w.writeSpace()
+	w.writeKeyword("select")
+	w.writeSpace()
+	w.writePos(stmt.Select)
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeBlockStmt(stmt.Body); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeCommClause writes a CommClause node
+func (w *Writer) writeCommClause(stmt *ast.CommClause) error {
+	w.openList()
+	w.writeSymbol("CommClause")
+	w.writeSpace()
+	w.writeKeyword("case")
+	w.writeSpace()
+	w.writePos(stmt.Case)
+	w.writeSpace()
+	w.writeKeyword("comm")
+	w.writeSpace()
+	if err := w.writeStmt(stmt.Comm); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("colon")
+	w.writeSpace()
+	w.writePos(stmt.Colon)
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeStmtList(stmt.Body); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeDeclStmt writes a DeclStmt node
+func (w *Writer) writeDeclStmt(stmt *ast.DeclStmt) error {
+	w.openList()
+	w.writeSymbol("DeclStmt")
+	w.writeSpace()
+	w.writeKeyword("decl")
+	w.writeSpace()
+	if err := w.writeDecl(stmt.Decl); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
 // Statement dispatcher
 func (w *Writer) writeStmt(stmt ast.Stmt) error {
 	if stmt == nil {
@@ -808,6 +1102,24 @@ func (w *Writer) writeStmt(stmt ast.Stmt) error {
 		return w.writeEmptyStmt(s)
 	case *ast.LabeledStmt:
 		return w.writeLabeledStmt(s)
+	case *ast.IfStmt:
+		return w.writeIfStmt(s)
+	case *ast.ForStmt:
+		return w.writeForStmt(s)
+	case *ast.RangeStmt:
+		return w.writeRangeStmt(s)
+	case *ast.SwitchStmt:
+		return w.writeSwitchStmt(s)
+	case *ast.CaseClause:
+		return w.writeCaseClause(s)
+	case *ast.TypeSwitchStmt:
+		return w.writeTypeSwitchStmt(s)
+	case *ast.SelectStmt:
+		return w.writeSelectStmt(s)
+	case *ast.CommClause:
+		return w.writeCommClause(s)
+	case *ast.DeclStmt:
+		return w.writeDeclStmt(s)
 	default:
 		return ErrUnknownStmtType(stmt)
 	}

@@ -342,6 +342,8 @@ func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 		return token.SHR_ASSIGN, nil
 	case "AND_NOT_ASSIGN":
 		return token.AND_NOT_ASSIGN, nil
+	case "ILLEGAL":
+		return token.ILLEGAL, nil
 
 	default:
 		return token.ILLEGAL, ErrUnknownNodeType(sym.Value, "token")
@@ -909,6 +911,58 @@ func (b *Builder) buildUnaryExpr(s sexp.SExp) (*ast.UnaryExpr, error) {
 	}, nil
 }
 
+// buildTypeAssertExpr parses a TypeAssertExpr node
+func (b *Builder) buildTypeAssertExpr(s sexp.SExp) (*ast.TypeAssertExpr, error) {
+	list, ok := b.expectList(s, "TypeAssertExpr")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "TypeAssertExpr") {
+		return nil, ErrExpectedNodeType("TypeAssertExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	xVal, ok := b.requireKeyword(args, "x", "TypeAssertExpr")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	lparenVal, ok := b.requireKeyword(args, "lparen", "TypeAssertExpr")
+	if !ok {
+		return nil, ErrMissingField("lparen")
+	}
+
+	typeVal, ok := b.requireKeyword(args, "type", "TypeAssertExpr")
+	if !ok {
+		return nil, ErrMissingField("type")
+	}
+
+	rparenVal, ok := b.requireKeyword(args, "rparen", "TypeAssertExpr")
+	if !ok {
+		return nil, ErrMissingField("rparen")
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	// Type can be nil for x.(type) in type switches
+	typ, err := b.buildOptionalExpr(typeVal)
+	if err != nil {
+		return nil, ErrInvalidField("type", err)
+	}
+
+	return &ast.TypeAssertExpr{
+		X:      x,
+		Lparen: b.parsePos(lparenVal),
+		Type:   typ,
+		Rparen: b.parsePos(rparenVal),
+	}, nil
+}
+
 // buildExpr dispatches to appropriate expression builder
 func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 	if err := b.enterDepth(); err != nil {
@@ -959,6 +1013,8 @@ func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 		return b.buildMapType(s)
 	case "ChanType":
 		return b.buildChanType(s)
+	case "TypeAssertExpr":
+		return b.buildTypeAssertExpr(s)
 	default:
 		return nil, ErrUnknownNodeType(sym.Value, "expression")
 	}
@@ -1442,6 +1498,514 @@ func (b *Builder) buildLabeledStmt(s sexp.SExp) (*ast.LabeledStmt, error) {
 	}, nil
 }
 
+// buildIfStmt parses an IfStmt node
+func (b *Builder) buildIfStmt(s sexp.SExp) (*ast.IfStmt, error) {
+	list, ok := b.expectList(s, "IfStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "IfStmt") {
+		return nil, ErrExpectedNodeType("IfStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	ifVal, ok := b.requireKeyword(args, "if", "IfStmt")
+	if !ok {
+		return nil, ErrMissingField("if")
+	}
+
+	condVal, ok := b.requireKeyword(args, "cond", "IfStmt")
+	if !ok {
+		return nil, ErrMissingField("cond")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "IfStmt")
+	if !ok {
+		return nil, ErrMissingField("body")
+	}
+
+	cond, err := b.buildExpr(condVal)
+	if err != nil {
+		return nil, ErrInvalidField("cond", err)
+	}
+
+	body, err := b.buildBlockStmt(bodyVal)
+	if err != nil {
+		return nil, ErrInvalidField("body", err)
+	}
+
+	// Optional init
+	var init ast.Stmt
+	if initVal, ok := args["init"]; ok && !b.parseNil(initVal) {
+		init, err = b.buildStmt(initVal)
+		if err != nil {
+			return nil, ErrInvalidField("init", err)
+		}
+	}
+
+	// Optional else
+	var els ast.Stmt
+	if elseVal, ok := args["else"]; ok && !b.parseNil(elseVal) {
+		els, err = b.buildStmt(elseVal)
+		if err != nil {
+			return nil, ErrInvalidField("else", err)
+		}
+	}
+
+	return &ast.IfStmt{
+		If:   b.parsePos(ifVal),
+		Init: init,
+		Cond: cond,
+		Body: body,
+		Else: els,
+	}, nil
+}
+
+// buildForStmt parses a ForStmt node
+func (b *Builder) buildForStmt(s sexp.SExp) (*ast.ForStmt, error) {
+	list, ok := b.expectList(s, "ForStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "ForStmt") {
+		return nil, ErrExpectedNodeType("ForStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	forVal, ok := b.requireKeyword(args, "for", "ForStmt")
+	if !ok {
+		return nil, ErrMissingField("for")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "ForStmt")
+	if !ok {
+		return nil, ErrMissingField("body")
+	}
+
+	body, err := b.buildBlockStmt(bodyVal)
+	if err != nil {
+		return nil, ErrInvalidField("body", err)
+	}
+
+	// Optional init
+	var init ast.Stmt
+	if initVal, ok := args["init"]; ok && !b.parseNil(initVal) {
+		init, err = b.buildStmt(initVal)
+		if err != nil {
+			return nil, ErrInvalidField("init", err)
+		}
+	}
+
+	// Optional cond
+	var cond ast.Expr
+	if condVal, ok := args["cond"]; ok && !b.parseNil(condVal) {
+		cond, err = b.buildExpr(condVal)
+		if err != nil {
+			return nil, ErrInvalidField("cond", err)
+		}
+	}
+
+	// Optional post
+	var post ast.Stmt
+	if postVal, ok := args["post"]; ok && !b.parseNil(postVal) {
+		post, err = b.buildStmt(postVal)
+		if err != nil {
+			return nil, ErrInvalidField("post", err)
+		}
+	}
+
+	return &ast.ForStmt{
+		For:  b.parsePos(forVal),
+		Init: init,
+		Cond: cond,
+		Post: post,
+		Body: body,
+	}, nil
+}
+
+// buildRangeStmt parses a RangeStmt node
+func (b *Builder) buildRangeStmt(s sexp.SExp) (*ast.RangeStmt, error) {
+	list, ok := b.expectList(s, "RangeStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "RangeStmt") {
+		return nil, ErrExpectedNodeType("RangeStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	forVal, ok := b.requireKeyword(args, "for", "RangeStmt")
+	if !ok {
+		return nil, ErrMissingField("for")
+	}
+
+	tokposVal, ok := b.requireKeyword(args, "tokpos", "RangeStmt")
+	if !ok {
+		return nil, ErrMissingField("tokpos")
+	}
+
+	tokVal, ok := b.requireKeyword(args, "tok", "RangeStmt")
+	if !ok {
+		return nil, ErrMissingField("tok")
+	}
+
+	xVal, ok := b.requireKeyword(args, "x", "RangeStmt")
+	if !ok {
+		return nil, ErrMissingField("x")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "RangeStmt")
+	if !ok {
+		return nil, ErrMissingField("body")
+	}
+
+	tok, err := b.parseToken(tokVal)
+	if err != nil {
+		return nil, ErrInvalidField("tok", err)
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, ErrInvalidField("x", err)
+	}
+
+	body, err := b.buildBlockStmt(bodyVal)
+	if err != nil {
+		return nil, ErrInvalidField("body", err)
+	}
+
+	// Optional key
+	var key ast.Expr
+	if keyVal, ok := args["key"]; ok && !b.parseNil(keyVal) {
+		key, err = b.buildExpr(keyVal)
+		if err != nil {
+			return nil, ErrInvalidField("key", err)
+		}
+	}
+
+	// Optional value
+	var value ast.Expr
+	if valueVal, ok := args["value"]; ok && !b.parseNil(valueVal) {
+		value, err = b.buildExpr(valueVal)
+		if err != nil {
+			return nil, ErrInvalidField("value", err)
+		}
+	}
+
+	return &ast.RangeStmt{
+		For:    b.parsePos(forVal),
+		Key:    key,
+		Value:  value,
+		TokPos: b.parsePos(tokposVal),
+		Tok:    tok,
+		X:      x,
+		Body:   body,
+	}, nil
+}
+
+// buildSwitchStmt parses a SwitchStmt node
+func (b *Builder) buildSwitchStmt(s sexp.SExp) (*ast.SwitchStmt, error) {
+	list, ok := b.expectList(s, "SwitchStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "SwitchStmt") {
+		return nil, ErrExpectedNodeType("SwitchStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	switchVal, ok := b.requireKeyword(args, "switch", "SwitchStmt")
+	if !ok {
+		return nil, ErrMissingField("switch")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "SwitchStmt")
+	if !ok {
+		return nil, ErrMissingField("body")
+	}
+
+	body, err := b.buildBlockStmt(bodyVal)
+	if err != nil {
+		return nil, ErrInvalidField("body", err)
+	}
+
+	// Optional init
+	var init ast.Stmt
+	if initVal, ok := args["init"]; ok && !b.parseNil(initVal) {
+		init, err = b.buildStmt(initVal)
+		if err != nil {
+			return nil, ErrInvalidField("init", err)
+		}
+	}
+
+	// Optional tag
+	var tag ast.Expr
+	if tagVal, ok := args["tag"]; ok && !b.parseNil(tagVal) {
+		tag, err = b.buildExpr(tagVal)
+		if err != nil {
+			return nil, ErrInvalidField("tag", err)
+		}
+	}
+
+	return &ast.SwitchStmt{
+		Switch: b.parsePos(switchVal),
+		Init:   init,
+		Tag:    tag,
+		Body:   body,
+	}, nil
+}
+
+// buildCaseClause parses a CaseClause node
+func (b *Builder) buildCaseClause(s sexp.SExp) (*ast.CaseClause, error) {
+	list, ok := b.expectList(s, "CaseClause")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "CaseClause") {
+		return nil, ErrExpectedNodeType("CaseClause", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	caseVal, ok := b.requireKeyword(args, "case", "CaseClause")
+	if !ok {
+		return nil, ErrMissingField("case")
+	}
+
+	colonVal, ok := b.requireKeyword(args, "colon", "CaseClause")
+	if !ok {
+		return nil, ErrMissingField("colon")
+	}
+
+	listVal, ok := b.requireKeyword(args, "list", "CaseClause")
+	if !ok {
+		return nil, ErrMissingField("list")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "CaseClause")
+	if !ok {
+		return nil, ErrMissingField("body")
+	}
+
+	// Build list of expressions
+	var exprs []ast.Expr
+	exprsList, ok := b.expectList(listVal, "CaseClause list")
+	if ok {
+		for _, exprSexp := range exprsList.Elements {
+			expr, err := b.buildExpr(exprSexp)
+			if err != nil {
+				return nil, ErrInvalidField("list expr", err)
+			}
+			exprs = append(exprs, expr)
+		}
+	}
+
+	// Build body statements
+	var stmts []ast.Stmt
+	stmtsList, ok := b.expectList(bodyVal, "CaseClause body")
+	if ok {
+		for _, stmtSexp := range stmtsList.Elements {
+			stmt, err := b.buildStmt(stmtSexp)
+			if err != nil {
+				return nil, ErrInvalidField("body stmt", err)
+			}
+			stmts = append(stmts, stmt)
+		}
+	}
+
+	return &ast.CaseClause{
+		Case:  b.parsePos(caseVal),
+		List:  exprs,
+		Colon: b.parsePos(colonVal),
+		Body:  stmts,
+	}, nil
+}
+
+// buildTypeSwitchStmt parses a TypeSwitchStmt node
+func (b *Builder) buildTypeSwitchStmt(s sexp.SExp) (*ast.TypeSwitchStmt, error) {
+	list, ok := b.expectList(s, "TypeSwitchStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "TypeSwitchStmt") {
+		return nil, ErrExpectedNodeType("TypeSwitchStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	switchVal, ok := b.requireKeyword(args, "switch", "TypeSwitchStmt")
+	if !ok {
+		return nil, ErrMissingField("switch")
+	}
+
+	assignVal, ok := b.requireKeyword(args, "assign", "TypeSwitchStmt")
+	if !ok {
+		return nil, ErrMissingField("assign")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "TypeSwitchStmt")
+	if !ok {
+		return nil, ErrMissingField("body")
+	}
+
+	assign, err := b.buildStmt(assignVal)
+	if err != nil {
+		return nil, ErrInvalidField("assign", err)
+	}
+
+	body, err := b.buildBlockStmt(bodyVal)
+	if err != nil {
+		return nil, ErrInvalidField("body", err)
+	}
+
+	// Optional init
+	var init ast.Stmt
+	if initVal, ok := args["init"]; ok && !b.parseNil(initVal) {
+		init, err = b.buildStmt(initVal)
+		if err != nil {
+			return nil, ErrInvalidField("init", err)
+		}
+	}
+
+	return &ast.TypeSwitchStmt{
+		Switch: b.parsePos(switchVal),
+		Init:   init,
+		Assign: assign,
+		Body:   body,
+	}, nil
+}
+
+// buildSelectStmt parses a SelectStmt node
+func (b *Builder) buildSelectStmt(s sexp.SExp) (*ast.SelectStmt, error) {
+	list, ok := b.expectList(s, "SelectStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "SelectStmt") {
+		return nil, ErrExpectedNodeType("SelectStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	selectVal, ok := b.requireKeyword(args, "select", "SelectStmt")
+	if !ok {
+		return nil, ErrMissingField("select")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "SelectStmt")
+	if !ok {
+		return nil, ErrMissingField("body")
+	}
+
+	body, err := b.buildBlockStmt(bodyVal)
+	if err != nil {
+		return nil, ErrInvalidField("body", err)
+	}
+
+	return &ast.SelectStmt{
+		Select: b.parsePos(selectVal),
+		Body:   body,
+	}, nil
+}
+
+// buildCommClause parses a CommClause node
+func (b *Builder) buildCommClause(s sexp.SExp) (*ast.CommClause, error) {
+	list, ok := b.expectList(s, "CommClause")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "CommClause") {
+		return nil, ErrExpectedNodeType("CommClause", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	caseVal, ok := b.requireKeyword(args, "case", "CommClause")
+	if !ok {
+		return nil, ErrMissingField("case")
+	}
+
+	colonVal, ok := b.requireKeyword(args, "colon", "CommClause")
+	if !ok {
+		return nil, ErrMissingField("colon")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "CommClause")
+	if !ok {
+		return nil, ErrMissingField("body")
+	}
+
+	// Optional comm
+	var comm ast.Stmt
+	var err error
+	if commVal, ok := args["comm"]; ok && !b.parseNil(commVal) {
+		comm, err = b.buildStmt(commVal)
+		if err != nil {
+			return nil, ErrInvalidField("comm", err)
+		}
+	}
+
+	// Build body statements
+	var stmts []ast.Stmt
+	stmtsList, ok := b.expectList(bodyVal, "CommClause body")
+	if ok {
+		for _, stmtSexp := range stmtsList.Elements {
+			stmt, err := b.buildStmt(stmtSexp)
+			if err != nil {
+				return nil, ErrInvalidField("body stmt", err)
+			}
+			stmts = append(stmts, stmt)
+		}
+	}
+
+	return &ast.CommClause{
+		Case:  b.parsePos(caseVal),
+		Comm:  comm,
+		Colon: b.parsePos(colonVal),
+		Body:  stmts,
+	}, nil
+}
+
+// buildDeclStmt parses a DeclStmt node
+func (b *Builder) buildDeclStmt(s sexp.SExp) (*ast.DeclStmt, error) {
+	list, ok := b.expectList(s, "DeclStmt")
+	if !ok {
+		return nil, ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "DeclStmt") {
+		return nil, ErrExpectedNodeType("DeclStmt", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	declVal, ok := b.requireKeyword(args, "decl", "DeclStmt")
+	if !ok {
+		return nil, ErrMissingField("decl")
+	}
+
+	decl, err := b.buildDecl(declVal)
+	if err != nil {
+		return nil, ErrInvalidField("decl", err)
+	}
+
+	return &ast.DeclStmt{
+		Decl: decl,
+	}, nil
+}
+
 // buildStmt dispatches to appropriate statement builder
 func (b *Builder) buildStmt(s sexp.SExp) (ast.Stmt, error) {
 	list, ok := b.expectList(s, "statement")
@@ -1481,6 +2045,24 @@ func (b *Builder) buildStmt(s sexp.SExp) (ast.Stmt, error) {
 		return b.buildEmptyStmt(s)
 	case "LabeledStmt":
 		return b.buildLabeledStmt(s)
+	case "IfStmt":
+		return b.buildIfStmt(s)
+	case "ForStmt":
+		return b.buildForStmt(s)
+	case "RangeStmt":
+		return b.buildRangeStmt(s)
+	case "SwitchStmt":
+		return b.buildSwitchStmt(s)
+	case "CaseClause":
+		return b.buildCaseClause(s)
+	case "TypeSwitchStmt":
+		return b.buildTypeSwitchStmt(s)
+	case "SelectStmt":
+		return b.buildSelectStmt(s)
+	case "CommClause":
+		return b.buildCommClause(s)
+	case "DeclStmt":
+		return b.buildDeclStmt(s)
 	default:
 		return nil, ErrUnknownNodeType(sym.Value, "statement")
 	}
