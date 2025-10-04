@@ -141,13 +141,10 @@ func TestWriteExprNil(t *testing.T) {
 func TestWriteExprUnknownType(t *testing.T) {
 	writer := New(nil)
 
-	// Create an unsupported expression type (e.g., FuncLit - not yet implemented)
-	funcLit := &ast.FuncLit{
-		Type: &ast.FuncType{},
-		Body: &ast.BlockStmt{},
-	}
+	// Create an unsupported expression type (BadExpr is never implemented)
+	badExpr := &ast.BadExpr{}
 
-	err := writer.writeExpr(funcLit)
+	err := writer.writeExpr(badExpr)
 	if err == nil {
 		t.Fatalf("expected error for unknown expression type")
 	}

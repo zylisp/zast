@@ -620,6 +620,149 @@ func (b *Builder) buildTypeAssertExpr(s sexp.SExp) (*ast.TypeAssertExpr, error) 
 	}, nil
 }
 
+// buildCompositeLit parses a CompositeLit node
+func (b *Builder) buildCompositeLit(s sexp.SExp) (*ast.CompositeLit, error) {
+	list, ok := b.expectList(s, "CompositeLit")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "CompositeLit") {
+		return nil, errors.ErrExpectedNodeType("CompositeLit", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	lbraceVal, ok := b.requireKeyword(args, "lbrace", "CompositeLit")
+	if !ok {
+		return nil, errors.ErrMissingField("lbrace")
+	}
+
+	eltsVal, ok := b.requireKeyword(args, "elts", "CompositeLit")
+	if !ok {
+		return nil, errors.ErrMissingField("elts")
+	}
+
+	rbraceVal, ok := b.requireKeyword(args, "rbrace", "CompositeLit")
+	if !ok {
+		return nil, errors.ErrMissingField("rbrace")
+	}
+
+	incompleteVal, ok := b.requireKeyword(args, "incomplete", "CompositeLit")
+	if !ok {
+		return nil, errors.ErrMissingField("incomplete")
+	}
+
+	// Optional type
+	var typ ast.Expr
+	var err error
+	if typeVal, ok := args["type"]; ok && !b.parseNil(typeVal) {
+		typ, err = b.buildExpr(typeVal)
+		if err != nil {
+			return nil, errors.ErrInvalidField("type", err)
+		}
+	}
+
+	// Build elements list
+	var elts []ast.Expr
+	eltsList, ok := b.expectList(eltsVal, "CompositeLit elts")
+	if ok {
+		for _, eltSexp := range eltsList.Elements {
+			elt, err := b.buildExpr(eltSexp)
+			if err != nil {
+				return nil, errors.ErrInvalidField("element", err)
+			}
+			elts = append(elts, elt)
+		}
+	}
+
+	incomplete, err := b.parseBool(incompleteVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("incomplete", err)
+	}
+
+	return &ast.CompositeLit{
+		Type:       typ,
+		Lbrace:     b.parsePos(lbraceVal),
+		Elts:       elts,
+		Rbrace:     b.parsePos(rbraceVal),
+		Incomplete: incomplete,
+	}, nil
+}
+
+// buildFuncLit parses a FuncLit node
+func (b *Builder) buildFuncLit(s sexp.SExp) (*ast.FuncLit, error) {
+	list, ok := b.expectList(s, "FuncLit")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "FuncLit") {
+		return nil, errors.ErrExpectedNodeType("FuncLit", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	typeVal, ok := b.requireKeyword(args, "type", "FuncLit")
+	if !ok {
+		return nil, errors.ErrMissingField("type")
+	}
+
+	bodyVal, ok := b.requireKeyword(args, "body", "FuncLit")
+	if !ok {
+		return nil, errors.ErrMissingField("body")
+	}
+
+	funcType, err := b.buildFuncType(typeVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("type", err)
+	}
+
+	body, err := b.buildBlockStmt(bodyVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("body", err)
+	}
+
+	return &ast.FuncLit{
+		Type: funcType,
+		Body: body,
+	}, nil
+}
+
+// buildEllipsis parses an Ellipsis node
+func (b *Builder) buildEllipsis(s sexp.SExp) (*ast.Ellipsis, error) {
+	list, ok := b.expectList(s, "Ellipsis")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "Ellipsis") {
+		return nil, errors.ErrExpectedNodeType("Ellipsis", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	ellipsisVal, ok := b.requireKeyword(args, "ellipsis", "Ellipsis")
+	if !ok {
+		return nil, errors.ErrMissingField("ellipsis")
+	}
+
+	// Optional elt
+	var elt ast.Expr
+	var err error
+	if eltVal, ok := args["elt"]; ok && !b.parseNil(eltVal) {
+		elt, err = b.buildExpr(eltVal)
+		if err != nil {
+			return nil, errors.ErrInvalidField("elt", err)
+		}
+	}
+
+	return &ast.Ellipsis{
+		Ellipsis: b.parsePos(ellipsisVal),
+		Elt:      elt,
+	}, nil
+}
+
 // buildExpr dispatches to appropriate expression builder
 func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 	if err := b.enterDepth(); err != nil {
@@ -672,6 +815,16 @@ func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 		return b.buildChanType(s)
 	case "TypeAssertExpr":
 		return b.buildTypeAssertExpr(s)
+	case "StructType":
+		return b.buildStructType(s)
+	case "InterfaceType":
+		return b.buildInterfaceType(s)
+	case "CompositeLit":
+		return b.buildCompositeLit(s)
+	case "FuncLit":
+		return b.buildFuncLit(s)
+	case "Ellipsis":
+		return b.buildEllipsis(s)
 	default:
 		return nil, errors.ErrUnknownNodeType(sym.Value, "expression")
 	}

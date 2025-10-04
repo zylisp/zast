@@ -168,3 +168,47 @@ func (w *Writer) writeChanType(typ *ast.ChanType) error {
 	w.closeList()
 	return nil
 }
+
+// writeStructType writes a StructType node
+func (w *Writer) writeStructType(typ *ast.StructType) error {
+	w.openList()
+	w.writeSymbol("StructType")
+	w.writeSpace()
+	w.writeKeyword("struct")
+	w.writeSpace()
+	w.writePos(typ.Struct)
+	w.writeSpace()
+	w.writeKeyword("fields")
+	w.writeSpace()
+	if err := w.writeFieldList(typ.Fields); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("incomplete")
+	w.writeSpace()
+	w.writeBool(typ.Incomplete)
+	w.closeList()
+	return nil
+}
+
+// writeInterfaceType writes an InterfaceType node
+func (w *Writer) writeInterfaceType(typ *ast.InterfaceType) error {
+	w.openList()
+	w.writeSymbol("InterfaceType")
+	w.writeSpace()
+	w.writeKeyword("interface")
+	w.writeSpace()
+	w.writePos(typ.Interface)
+	w.writeSpace()
+	w.writeKeyword("methods")
+	w.writeSpace()
+	if err := w.writeFieldList(typ.Methods); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("incomplete")
+	w.writeSpace()
+	w.writeBool(typ.Incomplete)
+	w.closeList()
+	return nil
+}

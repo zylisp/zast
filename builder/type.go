@@ -289,3 +289,93 @@ func (b *Builder) buildChanType(s sexp.SExp) (*ast.ChanType, error) {
 		Value: value,
 	}, nil
 }
+
+// buildStructType parses a StructType node
+func (b *Builder) buildStructType(s sexp.SExp) (*ast.StructType, error) {
+	list, ok := b.expectList(s, "StructType")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "StructType") {
+		return nil, errors.ErrExpectedNodeType("StructType", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	structVal, ok := b.requireKeyword(args, "struct", "StructType")
+	if !ok {
+		return nil, errors.ErrMissingField("struct")
+	}
+
+	fieldsVal, ok := b.requireKeyword(args, "fields", "StructType")
+	if !ok {
+		return nil, errors.ErrMissingField("fields")
+	}
+
+	incompleteVal, ok := b.requireKeyword(args, "incomplete", "StructType")
+	if !ok {
+		return nil, errors.ErrMissingField("incomplete")
+	}
+
+	fields, err := b.buildFieldList(fieldsVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("fields", err)
+	}
+
+	incomplete, err := b.parseBool(incompleteVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("incomplete", err)
+	}
+
+	return &ast.StructType{
+		Struct:     b.parsePos(structVal),
+		Fields:     fields,
+		Incomplete: incomplete,
+	}, nil
+}
+
+// buildInterfaceType parses an InterfaceType node
+func (b *Builder) buildInterfaceType(s sexp.SExp) (*ast.InterfaceType, error) {
+	list, ok := b.expectList(s, "InterfaceType")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "InterfaceType") {
+		return nil, errors.ErrExpectedNodeType("InterfaceType", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	interfaceVal, ok := b.requireKeyword(args, "interface", "InterfaceType")
+	if !ok {
+		return nil, errors.ErrMissingField("interface")
+	}
+
+	methodsVal, ok := b.requireKeyword(args, "methods", "InterfaceType")
+	if !ok {
+		return nil, errors.ErrMissingField("methods")
+	}
+
+	incompleteVal, ok := b.requireKeyword(args, "incomplete", "InterfaceType")
+	if !ok {
+		return nil, errors.ErrMissingField("incomplete")
+	}
+
+	methods, err := b.buildFieldList(methodsVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("methods", err)
+	}
+
+	incomplete, err := b.parseBool(incompleteVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("incomplete", err)
+	}
+
+	return &ast.InterfaceType{
+		Interface:  b.parsePos(interfaceVal),
+		Methods:    methods,
+		Incomplete: incomplete,
+	}, nil
+}

@@ -313,6 +313,76 @@ func (w *Writer) writeTypeAssertExpr(expr *ast.TypeAssertExpr) error {
 	return nil
 }
 
+// writeCompositeLit writes a CompositeLit node
+func (w *Writer) writeCompositeLit(expr *ast.CompositeLit) error {
+	w.openList()
+	w.writeSymbol("CompositeLit")
+	w.writeSpace()
+	w.writeKeyword("type")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Type); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("lbrace")
+	w.writeSpace()
+	w.writePos(expr.Lbrace)
+	w.writeSpace()
+	w.writeKeyword("elts")
+	w.writeSpace()
+	if err := w.writeExprList(expr.Elts); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("rbrace")
+	w.writeSpace()
+	w.writePos(expr.Rbrace)
+	w.writeSpace()
+	w.writeKeyword("incomplete")
+	w.writeSpace()
+	w.writeBool(expr.Incomplete)
+	w.closeList()
+	return nil
+}
+
+// writeFuncLit writes a FuncLit node
+func (w *Writer) writeFuncLit(expr *ast.FuncLit) error {
+	w.openList()
+	w.writeSymbol("FuncLit")
+	w.writeSpace()
+	w.writeKeyword("type")
+	w.writeSpace()
+	if err := w.writeFuncType(expr.Type); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("body")
+	w.writeSpace()
+	if err := w.writeBlockStmt(expr.Body); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
+// writeEllipsis writes an Ellipsis node
+func (w *Writer) writeEllipsis(expr *ast.Ellipsis) error {
+	w.openList()
+	w.writeSymbol("Ellipsis")
+	w.writeSpace()
+	w.writeKeyword("ellipsis")
+	w.writeSpace()
+	w.writePos(expr.Ellipsis)
+	w.writeSpace()
+	w.writeKeyword("elt")
+	w.writeSpace()
+	if err := w.writeExpr(expr.Elt); err != nil {
+		return err
+	}
+	w.closeList()
+	return nil
+}
+
 // Expression dispatcher
 func (w *Writer) writeExpr(expr ast.Expr) error {
 	if expr == nil {
@@ -351,6 +421,16 @@ func (w *Writer) writeExpr(expr ast.Expr) error {
 		return w.writeChanType(e)
 	case *ast.TypeAssertExpr:
 		return w.writeTypeAssertExpr(e)
+	case *ast.StructType:
+		return w.writeStructType(e)
+	case *ast.InterfaceType:
+		return w.writeInterfaceType(e)
+	case *ast.CompositeLit:
+		return w.writeCompositeLit(e)
+	case *ast.FuncLit:
+		return w.writeFuncLit(e)
+	case *ast.Ellipsis:
+		return w.writeEllipsis(e)
 	default:
 		return errors.ErrUnknownExprType(expr)
 	}
