@@ -104,6 +104,12 @@ func (w *Writer) WriteFile(file *ast.File) (string, error) {
 	w.openList()
 	w.writeSymbol("File")
 	w.writeSpace()
+	w.writeKeyword("doc")
+	w.writeSpace()
+	if err := w.writeCommentGroup(file.Doc); err != nil {
+		return "", err
+	}
+	w.writeSpace()
 	w.writeKeyword("package")
 	w.writeSpace()
 	w.writePos(file.Package)
@@ -122,22 +128,27 @@ func (w *Writer) WriteFile(file *ast.File) (string, error) {
 	w.writeSpace()
 	w.writeKeyword("scope")
 	w.writeSpace()
-	w.writeSymbol("nil") // Scope - simplified for Phase 1
+	if err := w.writeScope(file.Scope); err != nil {
+		return "", err
+	}
 	w.writeSpace()
 	w.writeKeyword("imports")
 	w.writeSpace()
-	w.openList()
-	w.closeList()
+	if err := w.writeImportSpecList(file.Imports); err != nil {
+		return "", err
+	}
 	w.writeSpace()
 	w.writeKeyword("unresolved")
 	w.writeSpace()
-	w.openList()
-	w.closeList()
+	if err := w.writeIdentList(file.Unresolved); err != nil {
+		return "", err
+	}
 	w.writeSpace()
 	w.writeKeyword("comments")
 	w.writeSpace()
-	w.openList()
-	w.closeList()
+	if err := w.writeCommentGroupList(file.Comments); err != nil {
+		return "", err
+	}
 	w.closeList()
 
 	return w.buf.String(), nil
@@ -180,6 +191,12 @@ func (w *Writer) writeFileNode(file *ast.File) error {
 	w.openList()
 	w.writeSymbol("File")
 	w.writeSpace()
+	w.writeKeyword("doc")
+	w.writeSpace()
+	if err := w.writeCommentGroup(file.Doc); err != nil {
+		return err
+	}
+	w.writeSpace()
 	w.writeKeyword("package")
 	w.writeSpace()
 	w.writePos(file.Package)
@@ -198,23 +215,58 @@ func (w *Writer) writeFileNode(file *ast.File) error {
 	w.writeSpace()
 	w.writeKeyword("scope")
 	w.writeSpace()
-	w.writeSymbol("nil") // Scope - simplified for Phase 1
+	if err := w.writeScope(file.Scope); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("imports")
 	w.writeSpace()
-	w.openList()
-	w.closeList()
+	if err := w.writeImportSpecList(file.Imports); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("unresolved")
 	w.writeSpace()
-	w.openList()
-	w.closeList()
+	if err := w.writeIdentList(file.Unresolved); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("comments")
 	w.writeSpace()
-	w.openList()
-	w.closeList()
+	if err := w.writeCommentGroupList(file.Comments); err != nil {
+		return err
+	}
 	w.closeList()
 
+	return nil
+}
+
+// writeImportSpecList writes a list of ImportSpec nodes
+func (w *Writer) writeImportSpecList(specs []*ast.ImportSpec) error {
+	w.openList()
+	for i, spec := range specs {
+		if i > 0 {
+			w.writeSpace()
+		}
+		if err := w.writeImportSpec(spec); err != nil {
+			return err
+		}
+	}
+	w.closeList()
+	return nil
+}
+
+// writeCommentGroupList writes a list of CommentGroup nodes
+func (w *Writer) writeCommentGroupList(groups []*ast.CommentGroup) error {
+	w.openList()
+	for i, group := range groups {
+		if i > 0 {
+			w.writeSpace()
+		}
+		if err := w.writeCommentGroup(group); err != nil {
+			return err
+		}
+	}
+	w.closeList()
 	return nil
 }

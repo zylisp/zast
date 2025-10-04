@@ -12,7 +12,9 @@ func (w *Writer) writeImportSpec(spec *ast.ImportSpec) error {
 	w.writeSpace()
 	w.writeKeyword("doc")
 	w.writeSpace()
-	w.writeSymbol("nil") // CommentGroup - simplified for Phase 1
+	if err := w.writeCommentGroup(spec.Doc); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("name")
 	w.writeSpace()
@@ -28,7 +30,9 @@ func (w *Writer) writeImportSpec(spec *ast.ImportSpec) error {
 	w.writeSpace()
 	w.writeKeyword("comment")
 	w.writeSpace()
-	w.writeSymbol("nil") // CommentGroup - simplified for Phase 1
+	if err := w.writeCommentGroup(spec.Comment); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("endpos")
 	w.writeSpace()
@@ -44,7 +48,9 @@ func (w *Writer) writeValueSpec(spec *ast.ValueSpec) error {
 	w.writeSpace()
 	w.writeKeyword("doc")
 	w.writeSpace()
-	w.writeSymbol("nil")
+	if err := w.writeCommentGroup(spec.Doc); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("names")
 	w.writeSpace()
@@ -66,7 +72,9 @@ func (w *Writer) writeValueSpec(spec *ast.ValueSpec) error {
 	w.writeSpace()
 	w.writeKeyword("comment")
 	w.writeSpace()
-	w.writeSymbol("nil")
+	if err := w.writeCommentGroup(spec.Comment); err != nil {
+		return err
+	}
 	w.closeList()
 	return nil
 }
@@ -78,7 +86,9 @@ func (w *Writer) writeTypeSpec(spec *ast.TypeSpec) error {
 	w.writeSpace()
 	w.writeKeyword("doc")
 	w.writeSpace()
-	w.writeSymbol("nil")
+	if err := w.writeCommentGroup(spec.Doc); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("name")
 	w.writeSpace()
@@ -102,7 +112,9 @@ func (w *Writer) writeTypeSpec(spec *ast.TypeSpec) error {
 	w.writeSpace()
 	w.writeKeyword("comment")
 	w.writeSpace()
-	w.writeSymbol("nil")
+	if err := w.writeCommentGroup(spec.Comment); err != nil {
+		return err
+	}
 	w.closeList()
 	return nil
 }
@@ -132,7 +144,9 @@ func (w *Writer) writeGenDecl(decl *ast.GenDecl) error {
 	w.writeSpace()
 	w.writeKeyword("doc")
 	w.writeSpace()
-	w.writeSymbol("nil") // CommentGroup - simplified for Phase 1
+	if err := w.writeCommentGroup(decl.Doc); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("tok")
 	w.writeSpace()
@@ -165,7 +179,9 @@ func (w *Writer) writeFuncDecl(decl *ast.FuncDecl) error {
 	w.writeSpace()
 	w.writeKeyword("doc")
 	w.writeSpace()
-	w.writeSymbol("nil") // CommentGroup - simplified for Phase 1
+	if err := w.writeCommentGroup(decl.Doc); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("recv")
 	w.writeSpace()

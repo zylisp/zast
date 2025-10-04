@@ -8,7 +8,9 @@ func (w *Writer) writeField(field *ast.Field) error {
 	w.writeSpace()
 	w.writeKeyword("doc")
 	w.writeSpace()
-	w.writeSymbol("nil") // CommentGroup - simplified for Phase 1
+	if err := w.writeCommentGroup(field.Doc); err != nil {
+		return err
+	}
 	w.writeSpace()
 	w.writeKeyword("names")
 	w.writeSpace()
@@ -34,7 +36,9 @@ func (w *Writer) writeField(field *ast.Field) error {
 	w.writeSpace()
 	w.writeKeyword("comment")
 	w.writeSpace()
-	w.writeSymbol("nil") // CommentGroup - simplified for Phase 1
+	if err := w.writeCommentGroup(field.Comment); err != nil {
+		return err
+	}
 	w.closeList()
 	return nil
 }

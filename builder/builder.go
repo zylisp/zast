@@ -328,3 +328,212 @@ func (b *Builder) parseToken(s sexp.SExp) (token.Token, error) {
 		return token.ILLEGAL, errors.ErrUnknownNodeType(sym.Value, "token")
 	}
 }
+
+// buildComment parses a Comment node
+func (b *Builder) buildComment(s sexp.SExp) (*ast.Comment, error) {
+	list, ok := b.expectList(s, "Comment")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "Comment") {
+		return nil, errors.ErrExpectedNodeType("Comment", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	slashVal, ok := b.requireKeyword(args, "slash", "Comment")
+	if !ok {
+		return nil, errors.ErrMissingField("slash")
+	}
+
+	textVal, ok := b.requireKeyword(args, "text", "Comment")
+	if !ok {
+		return nil, errors.ErrMissingField("text")
+	}
+
+	text, err := b.parseString(textVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("text", err)
+	}
+
+	return &ast.Comment{
+		Slash: b.parsePos(slashVal),
+		Text:  text,
+	}, nil
+}
+
+// buildCommentGroup parses a CommentGroup node
+func (b *Builder) buildCommentGroup(s sexp.SExp) (*ast.CommentGroup, error) {
+	if b.parseNil(s) {
+		return nil, nil
+	}
+
+	list, ok := b.expectList(s, "CommentGroup")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "CommentGroup") {
+		return nil, errors.ErrExpectedNodeType("CommentGroup", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	listVal, ok := b.requireKeyword(args, "list", "CommentGroup")
+	if !ok {
+		return nil, errors.ErrMissingField("list")
+	}
+
+	// Build comments list
+	var comments []*ast.Comment
+	commentsList, ok := b.expectList(listVal, "CommentGroup list")
+	if ok {
+		for _, commentSexp := range commentsList.Elements {
+			comment, err := b.buildComment(commentSexp)
+			if err != nil {
+				return nil, errors.ErrInvalidField("comment", err)
+			}
+			comments = append(comments, comment)
+		}
+	}
+
+	return &ast.CommentGroup{
+		List: comments,
+	}, nil
+}
+
+// parseObjKind converts a symbol to an ast.ObjKind value
+func (b *Builder) parseObjKind(s sexp.SExp) (ast.ObjKind, error) {
+	sym, ok := s.(*sexp.Symbol)
+	if !ok {
+		return ast.Bad, errors.ErrWrongType("symbol for ObjKind", s)
+	}
+
+	switch sym.Value {
+	case "Bad":
+		return ast.Bad, nil
+	case "Pkg":
+		return ast.Pkg, nil
+	case "Con":
+		return ast.Con, nil
+	case "Typ":
+		return ast.Typ, nil
+	case "Var":
+		return ast.Var, nil
+	case "Fun":
+		return ast.Fun, nil
+	case "Lbl":
+		return ast.Lbl, nil
+	default:
+		return ast.Bad, errors.ErrUnknownNodeType(sym.Value, "ObjKind")
+	}
+}
+
+// buildObject parses an Object node
+func (b *Builder) buildObject(s sexp.SExp) (*ast.Object, error) {
+	if b.parseNil(s) {
+		return nil, nil
+	}
+
+	list, ok := b.expectList(s, "Object")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "Object") {
+		return nil, errors.ErrExpectedNodeType("Object", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	kindVal, ok := b.requireKeyword(args, "kind", "Object")
+	if !ok {
+		return nil, errors.ErrMissingField("kind")
+	}
+
+	nameVal, ok := b.requireKeyword(args, "name", "Object")
+	if !ok {
+		return nil, errors.ErrMissingField("name")
+	}
+
+	kind, err := b.parseObjKind(kindVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("kind", err)
+	}
+
+	name, err := b.parseString(nameVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("name", err)
+	}
+
+	return &ast.Object{
+		Kind: kind,
+		Name: name,
+		Decl: nil, // Simplified: not tracking cross-references
+		Data: nil,
+		Type: nil,
+	}, nil
+}
+
+// buildScope parses a Scope node
+func (b *Builder) buildScope(s sexp.SExp) (*ast.Scope, error) {
+	if b.parseNil(s) {
+		return nil, nil
+	}
+
+	list, ok := b.expectList(s, "Scope")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "Scope") {
+		return nil, errors.ErrExpectedNodeType("Scope", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	objectsVal, ok := b.requireKeyword(args, "objects", "Scope")
+	if !ok {
+		return nil, errors.ErrMissingField("objects")
+	}
+
+	// Optional outer
+	var outer *ast.Scope
+	var err error
+	if outerVal, ok := args["outer"]; ok && !b.parseNil(outerVal) {
+		outer, err = b.buildScope(outerVal)
+		if err != nil {
+			return nil, errors.ErrInvalidField("outer", err)
+		}
+	}
+
+	// Build objects map
+	objects := make(map[string]*ast.Object)
+	objectsList, ok := b.expectList(objectsVal, "Scope objects")
+	if ok {
+		for _, objEntry := range objectsList.Elements {
+			entryList, ok := b.expectList(objEntry, "Scope object entry")
+			if !ok || len(entryList.Elements) != 2 {
+				return nil, errors.ErrInvalidField("object entry", fmt.Errorf("expected 2 elements"))
+			}
+
+			name, err := b.parseString(entryList.Elements[0])
+			if err != nil {
+				return nil, errors.ErrInvalidField("object name", err)
+			}
+
+			obj, err := b.buildObject(entryList.Elements[1])
+			if err != nil {
+				return nil, errors.ErrInvalidField("object", err)
+			}
+
+			objects[name] = obj
+		}
+	}
+
+	return &ast.Scope{
+		Outer:   outer,
+		Objects: objects,
+	}, nil
+}

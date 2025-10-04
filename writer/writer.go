@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"io"
+	"sort"
 	"strings"
 )
 
@@ -216,4 +217,151 @@ func (w *Writer) closeList() {
 func (w *Writer) WriteTo(wr io.Writer) (int64, error) {
 	n, err := wr.Write([]byte(w.buf.String()))
 	return int64(n), err
+}
+
+// writeComment writes a Comment node
+func (w *Writer) writeComment(c *ast.Comment) error {
+	if c == nil {
+		w.writeSymbol("nil")
+		return nil
+	}
+
+	w.openList()
+	w.writeSymbol("Comment")
+	w.writeSpace()
+	w.writeKeyword("slash")
+	w.writeSpace()
+	w.writePos(c.Slash)
+	w.writeSpace()
+	w.writeKeyword("text")
+	w.writeSpace()
+	w.writeString(c.Text)
+	w.closeList()
+	return nil
+}
+
+// writeCommentGroup writes a CommentGroup node
+func (w *Writer) writeCommentGroup(cg *ast.CommentGroup) error {
+	if cg == nil {
+		w.writeSymbol("nil")
+		return nil
+	}
+
+	w.openList()
+	w.writeSymbol("CommentGroup")
+	w.writeSpace()
+	w.writeKeyword("list")
+	w.writeSpace()
+	w.openList()
+	for i, c := range cg.List {
+		if i > 0 {
+			w.writeSpace()
+		}
+		if err := w.writeComment(c); err != nil {
+			return err
+		}
+	}
+	w.closeList()
+	w.closeList()
+	return nil
+}
+
+// writeObjKind writes an ast.ObjKind value
+func (w *Writer) writeObjKind(kind ast.ObjKind) {
+	switch kind {
+	case ast.Bad:
+		w.writeSymbol("Bad")
+	case ast.Pkg:
+		w.writeSymbol("Pkg")
+	case ast.Con:
+		w.writeSymbol("Con")
+	case ast.Typ:
+		w.writeSymbol("Typ")
+	case ast.Var:
+		w.writeSymbol("Var")
+	case ast.Fun:
+		w.writeSymbol("Fun")
+	case ast.Lbl:
+		w.writeSymbol("Lbl")
+	default:
+		w.writeSymbol("Bad")
+	}
+}
+
+// writeObject writes an Object node
+func (w *Writer) writeObject(obj *ast.Object) error {
+	if obj == nil {
+		w.writeSymbol("nil")
+		return nil
+	}
+
+	w.openList()
+	w.writeSymbol("Object")
+	w.writeSpace()
+	w.writeKeyword("kind")
+	w.writeSpace()
+	w.writeObjKind(obj.Kind)
+	w.writeSpace()
+	w.writeKeyword("name")
+	w.writeSpace()
+	w.writeString(obj.Name)
+	w.writeSpace()
+	w.writeKeyword("decl")
+	w.writeSpace()
+	w.writeSymbol("nil") // Simplified
+	w.writeSpace()
+	w.writeKeyword("data")
+	w.writeSpace()
+	w.writeSymbol("nil")
+	w.writeSpace()
+	w.writeKeyword("type")
+	w.writeSpace()
+	w.writeSymbol("nil")
+	w.closeList()
+	return nil
+}
+
+// writeScope writes a Scope node
+func (w *Writer) writeScope(scope *ast.Scope) error {
+	if scope == nil {
+		w.writeSymbol("nil")
+		return nil
+	}
+
+	w.openList()
+	w.writeSymbol("Scope")
+	w.writeSpace()
+	w.writeKeyword("outer")
+	w.writeSpace()
+	if err := w.writeScope(scope.Outer); err != nil {
+		return err
+	}
+	w.writeSpace()
+	w.writeKeyword("objects")
+	w.writeSpace()
+	w.openList()
+
+	// Sort keys for deterministic output
+	names := make([]string, 0, len(scope.Objects))
+	for name := range scope.Objects {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for i, name := range names {
+		if i > 0 {
+			w.writeSpace()
+		}
+		w.openList()
+		w.writeString(name)
+		w.writeSpace()
+		if err := w.writeObject(scope.Objects[name]); err != nil {
+			return err
+		}
+		w.closeList()
+	}
+
+	w.closeList()
+	w.closeList()
+	return nil
 }

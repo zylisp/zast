@@ -39,10 +39,19 @@ func (b *Builder) buildIdent(s sexp.SExp) (*ast.Ident, error) {
 		return nil, errors.ErrInvalidField("name", err)
 	}
 
+	// Optional obj field
+	var obj *ast.Object
+	if objVal, ok := args["obj"]; ok && !b.parseNil(objVal) {
+		obj, err = b.buildObject(objVal)
+		if err != nil {
+			return nil, errors.ErrInvalidField("obj", err)
+		}
+	}
+
 	ident := &ast.Ident{
 		NamePos: b.parsePos(nameposVal),
 		Name:    name,
-		Obj:     nil, // Objects handled separately if needed
+		Obj:     obj,
 	}
 
 	return ident, nil
@@ -383,6 +392,94 @@ func (b *Builder) buildIndexExpr(s sexp.SExp) (*ast.IndexExpr, error) {
 		Lbrack: b.parsePos(lbrackVal),
 		Index:  index,
 		Rbrack: b.parsePos(rbrackVal),
+	}, nil
+}
+
+// buildIndexListExpr parses an IndexListExpr node (Go 1.18+ generics)
+func (b *Builder) buildIndexListExpr(s sexp.SExp) (*ast.IndexListExpr, error) {
+	list, ok := b.expectList(s, "IndexListExpr")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "IndexListExpr") {
+		return nil, errors.ErrExpectedNodeType("IndexListExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	xVal, ok := b.requireKeyword(args, "x", "IndexListExpr")
+	if !ok {
+		return nil, errors.ErrMissingField("x")
+	}
+
+	lbrackVal, ok := b.requireKeyword(args, "lbrack", "IndexListExpr")
+	if !ok {
+		return nil, errors.ErrMissingField("lbrack")
+	}
+
+	indicesVal, ok := b.requireKeyword(args, "indices", "IndexListExpr")
+	if !ok {
+		return nil, errors.ErrMissingField("indices")
+	}
+
+	rbrackVal, ok := b.requireKeyword(args, "rbrack", "IndexListExpr")
+	if !ok {
+		return nil, errors.ErrMissingField("rbrack")
+	}
+
+	x, err := b.buildExpr(xVal)
+	if err != nil {
+		return nil, errors.ErrInvalidField("x", err)
+	}
+
+	// Build indices list
+	var indices []ast.Expr
+	indicesList, ok := b.expectList(indicesVal, "IndexListExpr indices")
+	if ok {
+		for _, indexSexp := range indicesList.Elements {
+			index, err := b.buildExpr(indexSexp)
+			if err != nil {
+				return nil, errors.ErrInvalidField("index", err)
+			}
+			indices = append(indices, index)
+		}
+	}
+
+	return &ast.IndexListExpr{
+		X:       x,
+		Lbrack:  b.parsePos(lbrackVal),
+		Indices: indices,
+		Rbrack:  b.parsePos(rbrackVal),
+	}, nil
+}
+
+// buildBadExpr parses a BadExpr node (for syntax errors)
+func (b *Builder) buildBadExpr(s sexp.SExp) (*ast.BadExpr, error) {
+	list, ok := b.expectList(s, "BadExpr")
+	if !ok {
+		return nil, errors.ErrNotList
+	}
+
+	if !b.expectSymbol(list.Elements[0], "BadExpr") {
+		return nil, errors.ErrExpectedNodeType("BadExpr", "unknown")
+	}
+
+	args := b.parseKeywordArgs(list.Elements)
+
+	fromVal, ok := b.requireKeyword(args, "from", "BadExpr")
+	if !ok {
+		return nil, errors.ErrMissingField("from")
+	}
+
+	toVal, ok := b.requireKeyword(args, "to", "BadExpr")
+	if !ok {
+		return nil, errors.ErrMissingField("to")
+	}
+
+	return &ast.BadExpr{
+		From: b.parsePos(fromVal),
+		To:   b.parsePos(toVal),
 	}, nil
 }
 
@@ -825,6 +922,10 @@ func (b *Builder) buildExpr(s sexp.SExp) (ast.Expr, error) {
 		return b.buildFuncLit(s)
 	case "Ellipsis":
 		return b.buildEllipsis(s)
+	case "IndexListExpr":
+		return b.buildIndexListExpr(s)
+	case "BadExpr":
+		return b.buildBadExpr(s)
 	default:
 		return nil, errors.ErrUnknownNodeType(sym.Value, "expression")
 	}

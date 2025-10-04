@@ -109,6 +109,10 @@ var formStyles = map[string]FormStyle{
 	"FuncLit":        StyleKeywordPairs,
 	"Ellipsis":       StyleCompact,
 
+	// Phase 5: Generics and error nodes
+	"IndexListExpr": StyleCompact,
+	"BadExpr":       StyleCompact,
+
 	// Specs
 	"ImportSpec": StyleKeywordPairs,
 	"ValueSpec":  StyleKeywordPairs,
