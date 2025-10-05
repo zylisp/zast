@@ -50,15 +50,42 @@
 // See the documentation for individual node types for details on their
 // S-expression representation.
 //
+// # Important Limitations
+//
 // # Position Information
 //
-// All position information from the original source is preserved through
-// round-trip conversion. Positions are represented as byte offsets.
+// **zast does not preserve exact source positions through round-trip conversion.**
+//
+// When converting Go AST → S-expr → Go AST:
+//   - Position information (token.Pos) is lost
+//   - The reconstructed AST has all positions set to token.NoPos (0)
+//   - Comments are preserved and attached to correct AST nodes, but their positions are reset
+//   - Use go/printer to format the output - it will generate clean, valid formatting
+//
+// This is **by design**:
+//   - S-expression representation is for code transformation and analysis
+//   - Not for preserving exact source formatting or file positions
+//   - If you need to preserve original positions, keep the original AST and FileSet
+//
+// # What is Preserved
+//
+// ✅ Complete AST structure
+// ✅ All comments (attached to correct nodes)
+// ✅ All code semantics
+// ✅ Ability to generate valid Go code
+//
+// # What is Lost
+//
+// ❌ Exact original formatting (spacing, line breaks)
+// ❌ Source file positions
+// ❌ Ability to point to original source locations
 //
 // # Comments
 //
 // When parsing with parser.ParseComments, all comments are preserved and
-// included in the S-expression representation.
+// attached to the correct AST nodes. However, their position information is
+// reset to token.NoPos. The go/printer package will place comments appropriately
+// when formatting the output.
 //
 // # Error Handling
 //
@@ -77,12 +104,17 @@
 //   - Minimal memory allocation
 //   - No recursion limits for normal code
 //
-// # Current Limitations
+// # Additional Limitations
 //
 // The following features are not yet fully supported:
 //   - Generic type parameters (Go 1.18+)
 //   - Interface method types
-//   - Comment position preservation (comments are preserved but may be repositioned)
+//
+// # Future Work
+//
+// Full position tracking through compilation stages will be handled by the
+// zylisp/core source map architecture. This will provide proper source
+// location tracking for error reporting in the Zylisp compiler pipeline
 //
 // # Example
 //
