@@ -37,11 +37,11 @@ func DefaultPrettyPrintConfig() *PrettyPrintConfig {
 type FormStyle int
 
 const (
-	StyleDefault FormStyle = iota
-	StyleKeywordPairs  // Format as :key value pairs with alignment
-	StyleCompact       // Try to keep on one line
-	StyleBody          // Special body formatting (BlockStmt, etc.)
-	StyleList          // Simple list formatting
+	StyleDefault      FormStyle = iota
+	StyleKeywordPairs           // Format as :key value pairs with alignment
+	StyleCompact                // Try to keep on one line
+	StyleBody                   // Special body formatting (BlockStmt, etc.)
+	StyleList                   // Simple list formatting
 )
 
 // Form style mappings for different node types
@@ -98,16 +98,16 @@ var formStyles = map[string]FormStyle{
 	"TypeAssertExpr": StyleKeywordPairs,
 
 	// Type nodes
-	"ArrayType":      StyleKeywordPairs,
-	"MapType":        StyleKeywordPairs,
-	"ChanType":       StyleKeywordPairs,
-	"StructType":     StyleKeywordPairs,
-	"InterfaceType":  StyleKeywordPairs,
+	"ArrayType":     StyleKeywordPairs,
+	"MapType":       StyleKeywordPairs,
+	"ChanType":      StyleKeywordPairs,
+	"StructType":    StyleKeywordPairs,
+	"InterfaceType": StyleKeywordPairs,
 
 	// Complex expressions (Phase 4)
-	"CompositeLit":   StyleKeywordPairs,
-	"FuncLit":        StyleKeywordPairs,
-	"Ellipsis":       StyleCompact,
+	"CompositeLit": StyleKeywordPairs,
+	"FuncLit":      StyleKeywordPairs,
+	"Ellipsis":     StyleCompact,
 
 	// Phase 5: Generics and error nodes
 	"IndexListExpr": StyleCompact,

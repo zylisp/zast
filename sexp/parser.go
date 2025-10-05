@@ -37,9 +37,9 @@ type Symbol struct {
 	Value    string
 }
 
-func (s *Symbol) sexp()           {}
-func (s *Symbol) Pos() Position   { return s.Position }
-func (s *Symbol) String() string  { return s.Value }
+func (s *Symbol) sexp()          {}
+func (s *Symbol) Pos() Position  { return s.Position }
+func (s *Symbol) String() string { return s.Value }
 
 // Keyword represents a keyword argument (starts with :)
 type Keyword struct {
@@ -91,7 +91,7 @@ type List struct {
 	Elements []SExp
 }
 
-func (l *List) sexp() {}
+func (l *List) sexp()         {}
 func (l *List) Pos() Position { return l.Position }
 func (l *List) String() string {
 	if len(l.Elements) == 0 {
