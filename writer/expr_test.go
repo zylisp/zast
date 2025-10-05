@@ -137,9 +137,3 @@ func TestWriteExprNil(t *testing.T) {
 		t.Fatalf("expected %q, got %q", "nil", writer.buf.String())
 	}
 }
-
-func TestWriteExprUnknownType(t *testing.T) {
-	// This test is no longer valid since BadExpr is now implemented in Phase 5
-	// All standard Go AST expression types are now supported
-	t.Skip("All standard Go AST expression types are now supported")
-}
