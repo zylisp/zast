@@ -506,3 +506,81 @@ func TestBuildObject(t *testing.T) {
 		t.Fatalf("expected name %q, got %q", "x", obj.Name)
 	}
 }
+
+// TestParseTokenAllTypes tests parsing all token types
+func TestParseTokenAllTypes(t *testing.T) {
+	builder := New()
+
+	tests := []struct {
+		input    string
+		expected token.Token
+	}{
+		// Keywords (only those supported in parseToken)
+		{"IMPORT", token.IMPORT},
+		{"TYPE", token.TYPE},
+		{"VAR", token.VAR},
+		{"CONST", token.CONST},
+		{"BREAK", token.BREAK},
+		{"CONTINUE", token.CONTINUE},
+		{"GOTO", token.GOTO},
+		{"FALLTHROUGH", token.FALLTHROUGH},
+
+		// Operators
+		{"ADD", token.ADD},
+		{"SUB", token.SUB},
+		{"MUL", token.MUL},
+		{"QUO", token.QUO},
+		{"REM", token.REM},
+		{"AND", token.AND},
+		{"OR", token.OR},
+		{"XOR", token.XOR},
+		{"SHL", token.SHL},
+		{"SHR", token.SHR},
+		{"AND_NOT", token.AND_NOT},
+		{"LAND", token.LAND},
+		{"LOR", token.LOR},
+		{"ARROW", token.ARROW},
+		{"INC", token.INC},
+		{"DEC", token.DEC},
+		{"EQL", token.EQL},
+		{"LSS", token.LSS},
+		{"GTR", token.GTR},
+		{"ASSIGN", token.ASSIGN},
+		{"NOT", token.NOT},
+		{"NEQ", token.NEQ},
+		{"LEQ", token.LEQ},
+		{"GEQ", token.GEQ},
+		{"DEFINE", token.DEFINE},
+		{"ADD_ASSIGN", token.ADD_ASSIGN},
+		{"SUB_ASSIGN", token.SUB_ASSIGN},
+		{"MUL_ASSIGN", token.MUL_ASSIGN},
+		{"QUO_ASSIGN", token.QUO_ASSIGN},
+		{"REM_ASSIGN", token.REM_ASSIGN},
+		{"AND_ASSIGN", token.AND_ASSIGN},
+		{"OR_ASSIGN", token.OR_ASSIGN},
+		{"XOR_ASSIGN", token.XOR_ASSIGN},
+		{"SHL_ASSIGN", token.SHL_ASSIGN},
+		{"SHR_ASSIGN", token.SHR_ASSIGN},
+		{"AND_NOT_ASSIGN", token.AND_NOT_ASSIGN},
+
+		// Literal types
+		{"INT", token.INT},
+		{"FLOAT", token.FLOAT},
+		{"IMAG", token.IMAG},
+		{"STRING", token.STRING},
+		{"CHAR", token.CHAR},
+	}
+
+	for _, tt := range tests {
+		parser := sexp.NewParser(tt.input)
+		sexpNode, _ := parser.Parse()
+
+		result, err := builder.parseToken(sexpNode)
+		if err != nil {
+			t.Fatalf("unexpected error for token %q: %v", tt.input, err)
+		}
+		if result != tt.expected {
+			t.Fatalf("expected %v for %q, got %v", tt.expected, tt.input, result)
+		}
+	}
+}

@@ -138,3 +138,69 @@ func TestWriteMinimalProgram(t *testing.T) {
 		t.Fatalf("expected Program")
 	}
 }
+
+// TestWriteFile tests writing a single file
+func TestWriteFile(t *testing.T) {
+	fset := token.NewFileSet()
+	file := fset.AddFile("test.go", -1, 100)
+
+	astFile := &ast.File{
+		Package: file.Pos(1),
+		Name: &ast.Ident{
+			NamePos: file.Pos(9),
+			Name:    "test",
+		},
+		Decls: []ast.Decl{},
+	}
+
+	writer := New(fset)
+	output, err := writer.WriteFile(astFile)
+	if err != nil {
+		t.Fatalf("write error: %v", err)
+	}
+
+	if !contains(output, "File") {
+		t.Fatalf("expected 'File' in output")
+	}
+	if !contains(output, "test") {
+		t.Fatalf("expected 'test' in output")
+	}
+}
+
+// TestWriteFileWithComments tests writing a file with comments
+func TestWriteFileWithComments(t *testing.T) {
+	fset := token.NewFileSet()
+	file := fset.AddFile("test.go", -1, 100)
+
+	astFile := &ast.File{
+		Package: file.Pos(1),
+		Name: &ast.Ident{
+			NamePos: file.Pos(9),
+			Name:    "test",
+		},
+		Decls: []ast.Decl{},
+		Comments: []*ast.CommentGroup{
+			{
+				List: []*ast.Comment{
+					{
+						Slash: file.Pos(1),
+						Text:  "// Package comment",
+					},
+				},
+			},
+		},
+	}
+
+	writer := New(fset)
+	output, err := writer.WriteFile(astFile)
+	if err != nil {
+		t.Fatalf("write error: %v", err)
+	}
+
+	if !contains(output, "File") {
+		t.Fatalf("expected 'File' in output")
+	}
+	if !contains(output, "Package comment") {
+		t.Fatalf("expected comment in output")
+	}
+}

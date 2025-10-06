@@ -570,3 +570,236 @@ func TestBuildDeclStmt(t *testing.T) {
 		t.Fatalf("expected tok CONST, got %v", genDecl.Tok)
 	}
 }
+
+// TestBuildIfStmtWithInitAndElse tests if statement with init and else
+func TestBuildIfStmtWithInitAndElse(t *testing.T) {
+	input := `(IfStmt
+		:if 1
+		:init (AssignStmt
+			:lhs ((Ident :namepos 4 :name "x" :obj nil))
+			:tokpos 6
+			:tok DEFINE
+			:rhs ((BasicLit :valuepos 9 :kind INT :value "1")))
+		:cond (BinaryExpr
+			:x (Ident :namepos 13 :name "x" :obj nil)
+			:oppos 15
+			:op GTR
+			:y (BasicLit :valuepos 17 :kind INT :value "0"))
+		:body (BlockStmt :lbrace 20 :list () :rbrace 21)
+		:else (BlockStmt :lbrace 28 :list () :rbrace 29))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	ifStmt, err := builder.buildIfStmt(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if ifStmt.Init == nil {
+		t.Fatal("expected non-nil init")
+	}
+	if ifStmt.Else == nil {
+		t.Fatal("expected non-nil else")
+	}
+}
+
+// TestBuildForStmtWithAllParts tests for statement with init, cond, and post
+func TestBuildForStmtWithAllParts(t *testing.T) {
+	input := `(ForStmt
+		:for 1
+		:init (AssignStmt
+			:lhs ((Ident :namepos 5 :name "i" :obj nil))
+			:tokpos 7
+			:tok DEFINE
+			:rhs ((BasicLit :valuepos 10 :kind INT :value "0")))
+		:cond (BinaryExpr
+			:x (Ident :namepos 13 :name "i" :obj nil)
+			:oppos 15
+			:op LSS
+			:y (BasicLit :valuepos 17 :kind INT :value "10"))
+		:post (IncDecStmt
+			:x (Ident :namepos 21 :name "i" :obj nil)
+			:tokpos 22
+			:tok INC)
+		:body (BlockStmt :lbrace 25 :list () :rbrace 26))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	forStmt, err := builder.buildForStmt(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if forStmt.Init == nil {
+		t.Fatal("expected non-nil init")
+	}
+	if forStmt.Cond == nil {
+		t.Fatal("expected non-nil cond")
+	}
+	if forStmt.Post == nil {
+		t.Fatal("expected non-nil post")
+	}
+}
+
+// TestBuildRangeStmtWithKeyValue tests range statement with key and value
+func TestBuildRangeStmtWithKeyValue(t *testing.T) {
+	input := `(RangeStmt
+		:for 1
+		:key (Ident :namepos 5 :name "i" :obj nil)
+		:value (Ident :namepos 8 :name "v" :obj nil)
+		:tokpos 10
+		:tok DEFINE
+		:x (Ident :namepos 18 :name "a" :obj nil)
+		:body (BlockStmt :lbrace 20 :list () :rbrace 21))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	rangeStmt, err := builder.buildRangeStmt(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if rangeStmt.Key == nil {
+		t.Fatal("expected non-nil key")
+	}
+	if rangeStmt.Value == nil {
+		t.Fatal("expected non-nil value")
+	}
+}
+
+// TestBuildSwitchStmtWithInitAndTag tests switch with init and tag
+func TestBuildSwitchStmtWithInitAndTag(t *testing.T) {
+	input := `(SwitchStmt
+		:switch 1
+		:init (AssignStmt
+			:lhs ((Ident :namepos 8 :name "x" :obj nil))
+			:tokpos 10
+			:tok DEFINE
+			:rhs ((BasicLit :valuepos 13 :kind INT :value "1")))
+		:tag (Ident :namepos 16 :name "x" :obj nil)
+		:body (BlockStmt :lbrace 18 :list () :rbrace 19))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	switchStmt, err := builder.buildSwitchStmt(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if switchStmt.Init == nil {
+		t.Fatal("expected non-nil init")
+	}
+	if switchStmt.Tag == nil {
+		t.Fatal("expected non-nil tag")
+	}
+}
+
+// TestBuildCaseClauseWithValues tests case clause with multiple values
+func TestBuildCaseClauseWithValues(t *testing.T) {
+	input := `(CaseClause
+		:case 1
+		:list ((BasicLit :valuepos 6 :kind INT :value "1")
+		       (BasicLit :valuepos 9 :kind INT :value "2"))
+		:colon 11
+		:body ((ExprStmt :x (Ident :namepos 13 :name "foo" :obj nil))))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	caseClause, err := builder.buildCaseClause(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if len(caseClause.List) != 2 {
+		t.Fatalf("expected 2 case values, got %d", len(caseClause.List))
+	}
+	if len(caseClause.Body) != 1 {
+		t.Fatalf("expected 1 body statement, got %d", len(caseClause.Body))
+	}
+}
+
+// TestBuildTypeSwitchStmtWithInit tests type switch with init
+func TestBuildTypeSwitchStmtWithInit(t *testing.T) {
+	input := `(TypeSwitchStmt
+		:switch 1
+		:init (AssignStmt
+			:lhs ((Ident :namepos 8 :name "x" :obj nil))
+			:tokpos 10
+			:tok DEFINE
+			:rhs ((Ident :namepos 13 :name "val" :obj nil)))
+		:assign (AssignStmt
+			:lhs ((Ident :namepos 24 :name "y" :obj nil))
+			:tokpos 26
+			:tok DEFINE
+			:rhs ((TypeAssertExpr
+				:x (Ident :namepos 29 :name "x" :obj nil)
+				:lparen 30
+				:type nil
+				:rparen 36)))
+		:body (BlockStmt :lbrace 38 :list () :rbrace 39))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	typeSwitch, err := builder.buildTypeSwitchStmt(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if typeSwitch.Init == nil {
+		t.Fatal("expected non-nil init")
+	}
+}
+
+// TestBuildCommClauseWithComm tests communication clause with comm statement
+func TestBuildCommClauseWithComm(t *testing.T) {
+	input := `(CommClause
+		:case 1
+		:comm (SendStmt
+			:chan (Ident :namepos 6 :name "ch" :obj nil)
+			:arrow 9
+			:value (BasicLit :valuepos 12 :kind INT :value "1"))
+		:colon 14
+		:body ((ExprStmt :x (Ident :namepos 16 :name "foo" :obj nil))))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	commClause, err := builder.buildCommClause(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if commClause.Comm == nil {
+		t.Fatal("expected non-nil comm")
+	}
+	if len(commClause.Body) != 1 {
+		t.Fatalf("expected 1 body statement, got %d", len(commClause.Body))
+	}
+}
