@@ -99,3 +99,133 @@ func TestBuildFieldWithNames(t *testing.T) {
 		t.Fatalf("expected second name %q, got %q", "y", field.Names[1].Name)
 	}
 }
+
+// TestBuildArrayType tests array type building
+func TestBuildArrayType(t *testing.T) {
+	input := `(ArrayType
+		:lbrack 1
+		:len (BasicLit :valuepos 2 :kind INT :value "10")
+		:elt (Ident :namepos 5 :name "int" :obj nil))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	arrayType, err := builder.buildArrayType(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if arrayType.Lbrack != token.Pos(1) {
+		t.Fatalf("expected lbrack pos 1, got %v", arrayType.Lbrack)
+	}
+}
+
+// TestBuildMapType tests map type building
+func TestBuildMapType(t *testing.T) {
+	input := `(MapType
+		:map 1
+		:key (Ident :namepos 5 :name "string" :obj nil)
+		:value (Ident :namepos 12 :name "int" :obj nil))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	mapType, err := builder.buildMapType(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if mapType.Map != token.Pos(1) {
+		t.Fatalf("expected map pos 1, got %v", mapType.Map)
+	}
+}
+
+// TestBuildChanType tests channel type building
+func TestBuildChanType(t *testing.T) {
+	input := `(ChanType
+		:begin 1
+		:arrow 0
+		:dir SEND
+		:value (Ident :namepos 11 :name "int" :obj nil))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	chanType, err := builder.buildChanType(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if chanType.Begin != token.Pos(1) {
+		t.Fatalf("expected begin pos 1, got %v", chanType.Begin)
+	}
+}
+
+// TestBuildStructType tests struct type building
+func TestBuildStructType(t *testing.T) {
+	input := `(StructType
+		:struct 1
+		:fields (FieldList
+			:opening 8
+			:list ()
+			:closing 9)
+		:incomplete false)`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	structType, err := builder.buildStructType(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if structType.Struct != token.Pos(1) {
+		t.Fatalf("expected struct pos 1, got %v", structType.Struct)
+	}
+
+	if structType.Fields == nil {
+		t.Fatalf("expected non-nil fields")
+	}
+}
+
+// TestBuildInterfaceType tests interface type building
+func TestBuildInterfaceType(t *testing.T) {
+	input := `(InterfaceType
+		:interface 1
+		:methods (FieldList
+			:opening 11
+			:list ()
+			:closing 12)
+		:incomplete false)`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	interfaceType, err := builder.buildInterfaceType(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if interfaceType.Interface != token.Pos(1) {
+		t.Fatalf("expected interface pos 1, got %v", interfaceType.Interface)
+	}
+
+	if interfaceType.Methods == nil {
+		t.Fatalf("expected non-nil methods")
+	}
+}

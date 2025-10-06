@@ -602,3 +602,19 @@ func f() {
 `
 	testRoundTrip(t, source)
 }
+
+// TestSliceExpressions tests all slice expression variants
+func TestSliceExpressions(t *testing.T) {
+	source := `package main
+
+func f() {
+	a := []int{1, 2, 3, 4, 5}
+	_ = a[1:3]
+	_ = a[:3]
+	_ = a[2:]
+	_ = a[:]
+	_ = a[1:3:4]
+}
+`
+	testRoundTrip(t, source)
+}
