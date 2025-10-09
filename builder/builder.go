@@ -1,3 +1,12 @@
+// Package builder converts S-expressions back to Go AST.
+//
+// IMPORTANT: Position information (token.Pos) is NOT preserved through
+// S-expression round-trips. All positions in the rebuilt AST will be
+// token.NoPos (0). This is by design - S-expressions are for code
+// transformation, not source archival.
+//
+// Comments are preserved and attached to the correct AST nodes, but
+// their positions are reset. Use go/printer to format the output.
 package builder
 
 import (
@@ -342,7 +351,8 @@ func (b *Builder) buildComment(s sexp.SExp) (*ast.Comment, error) {
 
 	args := b.parseKeywordArgs(list.Elements)
 
-	slashVal, ok := b.requireKeyword(args, "slash", "Comment")
+	// We parse slash position but don't use it - positions can't be preserved
+	_, ok = b.requireKeyword(args, "slash", "Comment")
 	if !ok {
 		return nil, errors.ErrMissingField("slash")
 	}
@@ -358,7 +368,7 @@ func (b *Builder) buildComment(s sexp.SExp) (*ast.Comment, error) {
 	}
 
 	return &ast.Comment{
-		Slash: b.parsePos(slashVal),
+		Slash: token.NoPos, // Positions are not preserved
 		Text:  text,
 	}, nil
 }

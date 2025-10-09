@@ -422,3 +422,27 @@ func TestFormatComplexStructure(t *testing.T) {
 		t.Errorf("pretty-printed output should be parseable: %v", err)
 	}
 }
+
+// Test FormatToWriter
+func TestFormatToWriter(t *testing.T) {
+	input := &List{Elements: []SExp{
+		&Symbol{Value: "Ident"},
+		&Keyword{Name: "name"},
+		&String{Value: "foo"},
+	}}
+
+	pp := NewPrettyPrinter()
+	var buf strings.Builder
+	err := pp.FormatToWriter(input, &buf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := buf.String()
+	if !strings.Contains(result, "Ident") {
+		t.Errorf("expected 'Ident' in output, got %q", result)
+	}
+	if !strings.Contains(result, ":name") {
+		t.Errorf("expected ':name' in output, got %q", result)
+	}
+}

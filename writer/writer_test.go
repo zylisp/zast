@@ -1,6 +1,7 @@
 package writer
 
 import (
+	"go/ast"
 	"go/token"
 	"testing"
 )
@@ -50,6 +51,47 @@ func TestWriteTokenMapping(t *testing.T) {
 		result := writer.buf.String()
 		if result != tt.expected {
 			t.Fatalf("expected %q, got %q", tt.expected, result)
+		}
+	}
+}
+
+// TestWriteBool tests boolean writing
+func TestWriteBool(t *testing.T) {
+	tests := []struct {
+		input    bool
+		expected string
+	}{
+		{true, "true"},
+		{false, "false"},
+	}
+
+	for _, tt := range tests {
+		writer := New(nil)
+		writer.writeBool(tt.input)
+		result := writer.buf.String()
+		if result != tt.expected {
+			t.Fatalf("expected %q, got %q", tt.expected, result)
+		}
+	}
+}
+
+// TestWriteChanDir tests channel direction writing
+func TestWriteChanDir(t *testing.T) {
+	tests := []struct {
+		input    ast.ChanDir
+		expected string
+	}{
+		{ast.SEND, "SEND"},
+		{ast.RECV, "RECV"},
+		{ast.SEND | ast.RECV, "SEND_RECV"},
+	}
+
+	for _, tt := range tests {
+		writer := New(nil)
+		writer.writeChanDir(tt.input)
+		result := writer.buf.String()
+		if result != tt.expected {
+			t.Fatalf("expected %q for dir %d, got %q", tt.expected, tt.input, result)
 		}
 	}
 }

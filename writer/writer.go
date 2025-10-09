@@ -1,3 +1,12 @@
+// Package writer converts Go AST to S-expressions.
+//
+// IMPORTANT: While the writer preserves position information in the
+// S-expression output, this information CANNOT be meaningfully restored
+// during round-trip. The builder will create ASTs with all positions
+// set to token.NoPos (0).
+//
+// This is by design - use zast for code transformation and analysis,
+// not for preserving exact source formatting.
 package writer
 
 import (

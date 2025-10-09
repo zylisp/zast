@@ -337,3 +337,250 @@ func TestParseKeywordArgsWithNonKeyword(t *testing.T) {
 		t.Fatalf("expected error for non-keyword")
 	}
 }
+
+// TestParseBool tests boolean parsing
+func TestParseBool(t *testing.T) {
+	builder := New()
+
+	tests := []struct {
+		input    string
+		expected bool
+		hasError bool
+	}{
+		{"true", true, false},
+		{"false", false, false},
+		{"TRUE", false, true}, // uppercase not supported
+		{"42", false, true},   // non-bool
+	}
+
+	for _, tt := range tests {
+		parser := sexp.NewParser(tt.input)
+		sexpNode, _ := parser.Parse()
+
+		result, err := builder.parseBool(sexpNode)
+		if tt.hasError && err == nil {
+			t.Fatalf("expected error for input %q", tt.input)
+		}
+		if !tt.hasError && err != nil {
+			t.Fatalf("unexpected error for input %q: %v", tt.input, err)
+		}
+		if !tt.hasError && result != tt.expected {
+			t.Fatalf("expected %v, got %v", tt.expected, result)
+		}
+	}
+}
+
+// TestParseChanDir tests channel direction parsing
+func TestParseChanDir(t *testing.T) {
+	builder := New()
+
+	tests := []struct {
+		input    string
+		expected int
+		hasError bool
+	}{
+		{"SEND", 1, false},      // ast.SEND
+		{"RECV", 2, false},      // ast.RECV
+		{"INVALID", 0, true},    // Invalid direction
+		{"42", 0, true},         // Non-symbol
+	}
+
+	for _, tt := range tests {
+		parser := sexp.NewParser(tt.input)
+		sexpNode, _ := parser.Parse()
+
+		result, err := builder.parseChanDir(sexpNode)
+		if tt.hasError && err == nil {
+			t.Fatalf("expected error for input %q", tt.input)
+		}
+		if !tt.hasError && err != nil {
+			t.Fatalf("unexpected error for input %q: %v", tt.input, err)
+		}
+		if !tt.hasError && int(result) != tt.expected {
+			t.Fatalf("expected %v, got %v", tt.expected, result)
+		}
+	}
+}
+
+// TestBuildComment tests comment building
+func TestBuildComment(t *testing.T) {
+	input := `(Comment :slash 1 :text "// comment")`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	comment, err := builder.buildComment(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if comment.Text != "// comment" {
+		t.Fatalf("expected text %q, got %q", "// comment", comment.Text)
+	}
+}
+
+// TestBuildCommentGroup tests comment group building
+func TestBuildCommentGroup(t *testing.T) {
+	input := `(CommentGroup :list ((Comment :slash 1 :text "// comment")))`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	group, err := builder.buildCommentGroup(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if len(group.List) != 1 {
+		t.Fatalf("expected 1 comment, got %d", len(group.List))
+	}
+
+	if group.List[0].Text != "// comment" {
+		t.Fatalf("expected text %q, got %q", "// comment", group.List[0].Text)
+	}
+}
+
+// TestParseObjKind tests object kind parsing
+func TestParseObjKind(t *testing.T) {
+	builder := New()
+
+	tests := []struct {
+		input    string
+		expected int
+		hasError bool
+	}{
+		{"Bad", 0, false},   // ast.Bad
+		{"Pkg", 1, false},   // ast.Pkg
+		{"Con", 2, false},   // ast.Con
+		{"Typ", 3, false},   // ast.Typ
+		{"Var", 4, false},   // ast.Var
+		{"Fun", 5, false},   // ast.Fun
+		{"Lbl", 6, false},   // ast.Lbl
+		{"INVALID", 0, true},// Invalid kind
+	}
+
+	for _, tt := range tests {
+		parser := sexp.NewParser(tt.input)
+		sexpNode, _ := parser.Parse()
+
+		result, err := builder.parseObjKind(sexpNode)
+		if tt.hasError && err == nil {
+			t.Fatalf("expected error for input %q", tt.input)
+		}
+		if !tt.hasError && err != nil {
+			t.Fatalf("unexpected error for input %q: %v", tt.input, err)
+		}
+		if !tt.hasError && int(result) != tt.expected {
+			t.Fatalf("expected %v, got %v", tt.expected, result)
+		}
+	}
+}
+
+// TestBuildObject tests object building
+func TestBuildObject(t *testing.T) {
+	input := `(Object
+		:kind Var
+		:name "x"
+		:decl nil
+		:data nil
+		:type nil)`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	obj, err := builder.buildObject(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if obj.Name != "x" {
+		t.Fatalf("expected name %q, got %q", "x", obj.Name)
+	}
+}
+
+// TestParseTokenAllTypes tests parsing all token types
+func TestParseTokenAllTypes(t *testing.T) {
+	builder := New()
+
+	tests := []struct {
+		input    string
+		expected token.Token
+	}{
+		// Keywords (only those supported in parseToken)
+		{"IMPORT", token.IMPORT},
+		{"TYPE", token.TYPE},
+		{"VAR", token.VAR},
+		{"CONST", token.CONST},
+		{"BREAK", token.BREAK},
+		{"CONTINUE", token.CONTINUE},
+		{"GOTO", token.GOTO},
+		{"FALLTHROUGH", token.FALLTHROUGH},
+
+		// Operators
+		{"ADD", token.ADD},
+		{"SUB", token.SUB},
+		{"MUL", token.MUL},
+		{"QUO", token.QUO},
+		{"REM", token.REM},
+		{"AND", token.AND},
+		{"OR", token.OR},
+		{"XOR", token.XOR},
+		{"SHL", token.SHL},
+		{"SHR", token.SHR},
+		{"AND_NOT", token.AND_NOT},
+		{"LAND", token.LAND},
+		{"LOR", token.LOR},
+		{"ARROW", token.ARROW},
+		{"INC", token.INC},
+		{"DEC", token.DEC},
+		{"EQL", token.EQL},
+		{"LSS", token.LSS},
+		{"GTR", token.GTR},
+		{"ASSIGN", token.ASSIGN},
+		{"NOT", token.NOT},
+		{"NEQ", token.NEQ},
+		{"LEQ", token.LEQ},
+		{"GEQ", token.GEQ},
+		{"DEFINE", token.DEFINE},
+		{"ADD_ASSIGN", token.ADD_ASSIGN},
+		{"SUB_ASSIGN", token.SUB_ASSIGN},
+		{"MUL_ASSIGN", token.MUL_ASSIGN},
+		{"QUO_ASSIGN", token.QUO_ASSIGN},
+		{"REM_ASSIGN", token.REM_ASSIGN},
+		{"AND_ASSIGN", token.AND_ASSIGN},
+		{"OR_ASSIGN", token.OR_ASSIGN},
+		{"XOR_ASSIGN", token.XOR_ASSIGN},
+		{"SHL_ASSIGN", token.SHL_ASSIGN},
+		{"SHR_ASSIGN", token.SHR_ASSIGN},
+		{"AND_NOT_ASSIGN", token.AND_NOT_ASSIGN},
+
+		// Literal types
+		{"INT", token.INT},
+		{"FLOAT", token.FLOAT},
+		{"IMAG", token.IMAG},
+		{"STRING", token.STRING},
+		{"CHAR", token.CHAR},
+	}
+
+	for _, tt := range tests {
+		parser := sexp.NewParser(tt.input)
+		sexpNode, _ := parser.Parse()
+
+		result, err := builder.parseToken(sexpNode)
+		if err != nil {
+			t.Fatalf("unexpected error for token %q: %v", tt.input, err)
+		}
+		if result != tt.expected {
+			t.Fatalf("expected %v for %q, got %v", tt.expected, tt.input, result)
+		}
+	}
+}

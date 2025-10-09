@@ -433,3 +433,17 @@ func TestStringMethods(t *testing.T) {
 		}
 	}
 }
+
+// Test parser error methods
+func TestParserErrors(t *testing.T) {
+	parser := NewParser("(")
+	_, err := parser.Parse()
+	if err == nil {
+		t.Fatal("expected parse error")
+	}
+
+	errors := parser.Errors()
+	if len(errors) == 0 {
+		t.Fatal("expected errors to be recorded")
+	}
+}

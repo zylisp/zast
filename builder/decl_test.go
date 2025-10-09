@@ -195,3 +195,58 @@ func TestBuildSpecEmptyList(t *testing.T) {
 		t.Fatalf("expected error for empty list")
 	}
 }
+
+// TestBuildValueSpec tests value spec building
+func TestBuildValueSpec(t *testing.T) {
+	input := `(ValueSpec
+		:doc nil
+		:names ((Ident :namepos 5 :name "x" :obj nil))
+		:type (Ident :namepos 7 :name "int" :obj nil)
+		:values ((BasicLit :valuepos 11 :kind INT :value "1"))
+		:comment nil)`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	spec, err := builder.buildValueSpec(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if len(spec.Names) != 1 || spec.Names[0].Name != "x" {
+		t.Fatalf("expected name 'x', got %v", spec.Names)
+	}
+
+	if len(spec.Values) != 1 {
+		t.Fatalf("expected 1 value, got %d", len(spec.Values))
+	}
+}
+
+// TestBuildTypeSpec tests type spec building
+func TestBuildTypeSpec(t *testing.T) {
+	input := `(TypeSpec
+		:doc nil
+		:name (Ident :namepos 6 :name "MyInt" :obj nil)
+		:typeparams nil
+		:assign 0
+		:type (Ident :namepos 12 :name "int" :obj nil)
+		:comment nil)`
+	parser := sexp.NewParser(input)
+	sexpNode, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	builder := New()
+	spec, err := builder.buildTypeSpec(sexpNode)
+	if err != nil {
+		t.Fatalf("build error: %v", err)
+	}
+
+	if spec.Name.Name != "MyInt" {
+		t.Fatalf("expected name 'MyInt', got %v", spec.Name.Name)
+	}
+}

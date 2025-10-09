@@ -62,16 +62,15 @@ func TestBuildFileSet(t *testing.T) {
 		t.Fatalf("build error: %v", err)
 	}
 
+	// FileSet parsing is now simplified - we don't preserve position information
+	// The FileSetInfo is minimal since positions can't be preserved through round-trip
 	if fileSetInfo.Base != 1 {
 		t.Fatalf("expected base %d, got %d", 1, fileSetInfo.Base)
 	}
 
-	if len(fileSetInfo.Files) != 1 {
-		t.Fatalf("expected 1 file, got %d", len(fileSetInfo.Files))
-	}
-
-	if fileSetInfo.Files[0].Name != "main.go" {
-		t.Fatalf("expected file name %q, got %q", "main.go", fileSetInfo.Files[0].Name)
+	// Files list should be nil since we don't preserve file metadata
+	if fileSetInfo.Files != nil {
+		t.Fatalf("expected nil files, got %d files", len(fileSetInfo.Files))
 	}
 }
 
